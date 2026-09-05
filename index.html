@@ -163,20 +163,55 @@
         line-height: 0.94;
       }
 
-      .image-grid {
+      .image-examples {
         display: grid;
-        gap: 1.5rem;
+        gap: 3.5rem;
+        margin-top: 2rem;
       }
 
-      bright-image,
-      bright-image img {
+      .image-example {
+        scroll-margin-top: 2rem;
+      }
+
+      .image-example h3 {
+        margin: 0 0 1rem;
+        color: #ededf0;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.6rem, 2vw, 1.5rem);
+      }
+
+      .comparison figure {
+        min-width: 0;
+        margin: 0;
+      }
+
+      .comparison figcaption {
+        min-height: 2.6em;
+        margin-bottom: 0.6rem;
+        color: #b5b5bc;
+        font-size: 0.78rem;
+        line-height: 1.3;
+      }
+
+      .comparison img,
+      .comparison bright-image {
         display: block;
         width: 100%;
-        border-radius: clamp(1rem, 3vw, 2rem);
+        border-radius: clamp(0.6rem, 2vw, 1rem);
       }
 
-      bright-image img {
+      .comparison img {
         height: auto;
+      }
+
+      .image-example .caption {
+        margin-top: 1rem;
       }
 
       .caption {
@@ -219,11 +254,6 @@
           width: min(100% - 4rem, 70rem);
         }
 
-        .image-grid {
-          grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 0.7fr);
-          align-items: end;
-        }
-
         .code-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -241,8 +271,9 @@
     <header class="shell">
       <span class="brand">Brightpixels</span>
       <nav class="links" aria-label="Project links">
-        <a href="#example">Example</a>
-        <a href="./README.md">Docs</a>
+        <a href="#example">Text</a>
+        <a href="#images">Images</a>
+        <a href="https://github.com/echohtp/brightpixels#readme">Docs</a>
       </nav>
     </header>
 
@@ -251,12 +282,11 @@
         <p class="eyebrow">HDR highlights for the web</p>
         <h1>Make pixels <bright-text intensity="16">brighter.</bright-text></h1>
         <p class="hero-copy">
-          One tiny JavaScript package for brighter-than-white text and image
-          highlights. No animation. No glow. Just the brightest pixels your
-          browser and display can produce.
+          A JavaScript package for brighter-than-white text and image highlights.
+          Wrap content, set its intensity, and let compatible screens reveal
+          the extra light.
         </p>
-        <pre class="install"><code>npm install brightpixels</code></pre>
-        <p class="caption">npm release pending. This demo runs the local library source.</p>
+        <pre class="install"><code>npm install github:echohtp/brightpixels</code></pre>
       </section>
 
       <section class="shell" id="example">
@@ -280,32 +310,77 @@
         </p>
       </section>
 
-      <section class="shell">
+      <section class="shell" id="images">
         <p class="section-label">Image highlights</p>
-        <div class="image-grid">
-          <bright-image intensity="8">
-            <img
-              src="./highlights.svg"
-              alt="White sun above an abstract blue and violet mountain horizon"
-              width="1600"
-              height="900"
-            />
-          </bright-image>
-          <p class="caption">
-            The image wrapper lifts only the lightest pixels. The original image,
-            dimensions, and alternative text stay in the page as the fallback.
-          </p>
+        <h2>Let highlights <bright-text intensity="12">shine.</bright-text></h2>
+        <p class="caption">
+          Each pair uses the same source image. Brightpixels lifts its lightest
+          pixels on the right. The difference depends on your browser and display;
+          both images may look the same on a standard-range screen.
+        </p>
+        <div class="image-examples">
+          <article class="image-example" id="image-ocean">
+            <h3>Sunlit water</h3>
+            <div class="comparison">
+              <figure>
+                <figcaption>Original</figcaption>
+                <img src="./assets/examples/ocean.png" alt="Sunlight reflected on dark blue water" width="1536" height="1024" loading="lazy" decoding="async" />
+              </figure>
+              <figure>
+                <figcaption>Brightpixels · intensity 6</figcaption>
+                <bright-image intensity="6">
+                  <img src="./assets/examples/ocean.png" alt="Sunlight reflected on dark blue water, with enhanced highlights" width="1536" height="1024" loading="lazy" decoding="async" />
+                </bright-image>
+              </figure>
+            </div>
+            <p class="caption">Small reflections on the water receive the strongest brightness increase.</p>
+          </article>
+
+          <article class="image-example" id="image-chrome">
+            <h3>Reflective metal</h3>
+            <div class="comparison">
+              <figure>
+                <figcaption>Original</figcaption>
+                <img src="./assets/examples/chrome.png" alt="A polished chrome ring on a dark studio surface" width="1536" height="1024" loading="lazy" decoding="async" />
+              </figure>
+              <figure>
+                <figcaption>Brightpixels · intensity 8</figcaption>
+                <bright-image intensity="8">
+                  <img src="./assets/examples/chrome.png" alt="A polished chrome ring with enhanced reflections" width="1536" height="1024" loading="lazy" decoding="async" />
+                </bright-image>
+              </figure>
+            </div>
+            <p class="caption">Narrow studio reflections show how the wrapper handles bright edges and metallic surfaces.</p>
+          </article>
+
+          <article class="image-example" id="image-night">
+            <h3>Night lights</h3>
+            <div class="comparison">
+              <figure>
+                <figcaption>Original</figcaption>
+                <img src="./assets/examples/night.png" alt="White streetlights reflected on a wet city street at night" width="1536" height="1024" loading="lazy" decoding="async" />
+              </figure>
+              <figure>
+                <figcaption>Brightpixels · intensity 12</figcaption>
+                <bright-image intensity="12">
+                  <img src="./assets/examples/night.png" alt="White streetlights and wet pavement with enhanced highlights" width="1536" height="1024" loading="lazy" decoding="async" />
+                </bright-image>
+              </figure>
+            </div>
+            <p class="caption">Streetlights and their reflections stand out against the darker buildings and pavement.</p>
+          </article>
         </div>
       </section>
 
       <section class="shell">
-        <p class="section-label">Two wrappers, one setting</p>
+        <p class="section-label">HTML usage</p>
         <div class="code-grid">
           <pre><code>&lt;bright-text intensity="12"&gt;
   Important words
 &lt;/bright-text&gt;</code></pre>
           <pre><code>&lt;bright-image intensity="8"&gt;
-  &lt;img src="photo.jpg" alt="…" /&gt;
+  &lt;img src="./assets/examples/chrome.png"
+       alt="Reflective chrome ring" /&gt;
 &lt;/bright-image&gt;</code></pre>
         </div>
       </section>

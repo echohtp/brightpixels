@@ -1,127 +1,94 @@
 # Brightpixels
 
-A tiny, dependency-free JavaScript library that lifts text and image highlights above ordinary white on supported HDR screens.
+JavaScript web components for HDR text and image highlights. Brightpixels uses an extended-range WebGPU canvas and preserves fallback content when rendering is unavailable.
 
-- One setting: `intensity`
-- No visible controls, animation, glow, or decoration
-- Keeps text selectable and copyable
-- Keeps the original image and its alt text
-- Inherits existing typography and layout
-- Falls back to the original white text or image
+[Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images)
 
-[View the live HDR demo](https://echohtp.github.io/brightpixels/)
+## Installation
 
-The repository root is the demo source. GitHub Pages can publish it directly
-from the `main` branch with no build step.
-
-## Install
+Install from the GitHub repository:
 
 ```bash
-npm install brightpixels
+npm install github:echohtp/brightpixels
 ```
 
-Import it once:
+Import the package once to register `<bright-text>` and `<bright-image>`:
 
 ```js
 import "brightpixels";
 ```
 
-## Complete inline example
-
-GitHub shows this as code because README pages do not run package JavaScript. Save it as `index.html` and open it from HTTPS or localhost to try the real HDR output.
+For a page without a bundler, copy `index.js` from this repository and load it as a module:
 
 ```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Brightpixels example</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #000;
-        color: #aaa;
-        font-family: system-ui, sans-serif;
-      }
-
-      h1 {
-        max-width: 10ch;
-        font: 800 clamp(3rem, 14vw, 9rem) / 0.9 "Arial Narrow", sans-serif;
-        letter-spacing: -0.05em;
-      }
-    </style>
-    <script type="module">
-      import "https://cdn.jsdelivr.net/npm/brightpixels@0.1.0/+esm";
-    </script>
-  </head>
-  <body>
-    <h1>Make <bright-text intensity="12">important words</bright-text> brighter.</h1>
-  </body>
-</html>
+<script type="module" src="./index.js"></script>
 ```
 
 ## Text
 
-Wrap only the words that should become HDR:
+Wrap a short text fragment:
 
 ```html
-<p>
-  Normal white stays calm.
-  <bright-text intensity="12">This phrase rises above it.</bright-text>
-</p>
+<h1><bright-text intensity="12">HDR text</bright-text></h1>
+<p>An example of <bright-text intensity="8">inline emphasis</bright-text>.</p>
 ```
 
-Shape the letters with normal CSS. Brightpixels inherits the font, size, weight, stretch, spacing, line height, and text transform:
+Apply typography with CSS:
 
 ```css
-.headline {
-  font-family: "Arial Narrow", sans-serif;
-  font-size: clamp(3rem, 12vw, 9rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 0.9;
+h1 {
+  font-family: system-ui, sans-serif;
+  font-size: clamp(2rem, 8vw, 6rem);
+  font-weight: 700;
 }
 ```
 
-To keep existing HTML unchanged, wrap matching elements from JavaScript:
-
-```html
-<h1 class="headline">EXTRA BRIGHT</h1>
-```
+To wrap an existing element's content:
 
 ```js
 import { brighten } from "brightpixels";
 
-brighten(".headline", { intensity: 12 });
+const [heading] = brighten(".headline", { intensity: 12 });
+heading.intensity = 8;
 ```
+
+Text remains selectable. The current renderer handles plain-text fragments of up to 128 characters on a single line; split longer content into shorter wrappers.
 
 ## Images
 
-Wrap an ordinary image. Brightpixels raises its lightest pixels into HDR while leaving shadows and midtones readable:
+`<bright-image>` takes an ordinary `<img>`. It increases the image's brightest pixels, with a stronger multiplier toward white. The original image supplies layout, alternative text, and fallback content.
+
+The previews below link to running comparisons that use the same source image with and without Brightpixels.
+
+| Sunlit water | Reflective metal | Night lights |
+| --- | --- | --- |
+| [![Sunlight reflected on dark blue water](https://raw.githubusercontent.com/echohtp/brightpixels/main/assets/examples/ocean.png)](https://echohtp.github.io/brightpixels/#image-ocean) | [![Polished chrome reflecting white studio lights](https://raw.githubusercontent.com/echohtp/brightpixels/main/assets/examples/chrome.png)](https://echohtp.github.io/brightpixels/#image-chrome) | [![White streetlights reflected on wet pavement](https://raw.githubusercontent.com/echohtp/brightpixels/main/assets/examples/night.png)](https://echohtp.github.io/brightpixels/#image-night) |
+| `intensity="6"` | `intensity="8"` | `intensity="12"` |
+
+### HTML wrapper
+
+Use an image URL from your application. The sample files are in this repository's `assets/examples/` directory.
 
 ```html
+<bright-image intensity="6">
+  <img
+    src="./assets/examples/ocean.png"
+    alt="Sunlight reflected on dark blue water"
+    width="1536"
+    height="1024"
+  />
+</bright-image>
+
 <bright-image intensity="8">
-  <img src="/sunset.jpg" alt="Sunset over the ocean" />
+  <img src="./assets/examples/chrome.png" alt="Reflective chrome ring" />
+</bright-image>
+
+<bright-image intensity="12">
+  <img src="./assets/examples/night.png" alt="Streetlights on wet pavement" />
 </bright-image>
 ```
 
-Or wrap existing images from JavaScript:
-
-```html
-<img class="hdr-photo" src="/sunset.jpg" alt="Sunset over the ocean" />
-```
-
-```js
-import { brightenImages } from "brightpixels";
-
-brightenImages(".hdr-photo", { intensity: 8 });
-```
-
-Style the wrapper when an image should fill a responsive container:
+Preserve the image's aspect ratio in responsive layouts:
 
 ```css
 bright-image,
@@ -129,89 +96,110 @@ bright-image img {
   display: block;
   width: 100%;
 }
+
+bright-image img {
+  height: auto;
+}
 ```
 
-For canvas security, remote images must opt into cross-origin use:
+### JavaScript wrapper
+
+Wrap matching `<img>` elements in place:
 
 ```html
-<bright-image intensity="8">
-  <img crossorigin="anonymous" src="https://images.example/photo.jpg" alt="" />
-</bright-image>
+<img class="hdr-photo" src="./assets/examples/chrome.png" alt="Reflective chrome ring" />
 ```
 
-The image server must also send a matching CORS header. Same-origin images need no extra setup.
-
-## Setting
-
-| Setting | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| `intensity` | number from `1` to `16` | `16` | `1` is reference white. Higher values request a brighter HDR signal. |
-
-Use `intensity` as an HTML attribute or JavaScript setting. Values outside the range are clamped.
-
 ```js
-const [title] = brighten(".headline");
-title.intensity = 8;
+import { brightenImages } from "brightpixels";
 
-const [photo] = brightenImages(".hdr-photo");
+const [photo] = brightenImages(".hdr-photo", { intensity: 8 });
 photo.intensity = 6;
 ```
 
-Both helpers accept a CSS selector, one element, or an iterable of elements. Repeated calls reuse an existing Brightpixels wrapper instead of nesting another one.
+### Remote images
+
+Images hosted on another origin need CORS permission to be read by the renderer:
+
+```html
+<bright-image intensity="8">
+  <img
+    crossorigin="anonymous"
+    src="https://images.example.com/photo.jpg"
+    alt="Image description"
+  />
+</bright-image>
+```
+
+The image server must send an appropriate `Access-Control-Allow-Origin` header. Same-origin images need no CORS configuration. If the original image loads but cannot be read by the canvas, it remains visible as the fallback.
 
 ## React
 
-React 19 supports custom elements directly. Import the React entry once for runtime registration and TypeScript JSX types:
+The React 19 entry registers the web components and provides TypeScript JSX declarations:
 
 ```tsx
 import "brightpixels/react";
 
-export function Hero() {
+export function Example() {
   return (
-    <main>
-      <h1>
-        Make <bright-text intensity={12}>important words</bright-text> brighter.
-      </h1>
-
+    <article>
+      <h1><bright-text intensity={12}>HDR text</bright-text></h1>
       <bright-image intensity={8}>
-        <img src="/sunset.jpg" alt="Sunset over the ocean" />
+        <img src="/photos/chrome.png" alt="Reflective chrome ring" />
       </bright-image>
-    </main>
+    </article>
   );
 }
 ```
 
-The React entry re-exports `brighten()` and `brightenImages()`. It does not import React at runtime or add a React dependency.
+`brightpixels/react` re-exports the package API and has no React runtime dependency. Import it from client-side application code when using a framework with server rendering.
 
-## Status
+## API
 
-Read `.mode` after the `brightpixelsready` event to learn whether an element is using HDR or its fallback:
+| Export | Description |
+| --- | --- |
+| `brighten(targets, settings?)` | Wraps element contents and returns `BrightTextElement[]`. |
+| `brightenImages(targets, settings?)` | Wraps images and returns `BrightImageElement[]`. |
+| `defineBrightpixels()` | Registers the custom elements; registration also runs on browser import. |
+| `version` | Package version string. |
+
+Both helpers accept a CSS selector, an element, or an iterable of elements. Existing Brightpixels wrappers are reused. Imports are safe in environments without a DOM; helpers return empty arrays there.
+
+### Settings and element properties
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `intensity` | `number` | `16` | HDR signal multiplier, clamped to `1`–`16`. Available as an attribute or property. |
+| `mode` | `"hdr" \| "fallback" \| null` | `null` | Read-only renderer state. |
+| `image` | `HTMLImageElement \| null` | `null` | Read-only source image on `<bright-image>`. |
+
+`intensity: 1` uses reference white. Higher values request more light; physical screen brightness is determined by the browser, operating system, and display.
+
+### Events
+
+Elements dispatch a bubbling `brightpixelsready` event when their rendering mode changes:
 
 ```js
 document.addEventListener("brightpixelsready", (event) => {
-  console.log(event.detail.kind, event.detail.mode);
+  const { kind, mode, version } = event.detail;
+  console.log(kind, mode, version);
 });
 ```
 
-The event detail is `{ kind: "text" | "image", mode: "hdr" | "fallback", version }`.
+`kind` is `"text"` or `"image"`; `mode` is `"hdr"` or `"fallback"`. The `"hdr"` value indicates that the WebGPU renderer initialized. It does not measure the display's brightness.
 
-## How it works
+## Rendering requirements
 
-Brightpixels redraws the visible letters or image into a transparent extended-range WebGPU canvas. Values above `1` ask an HDR display for light brighter than ordinary white. The operating system and display decide the physical result.
+HDR output requires HTTPS or localhost, WebGPU with extended-range canvas output, and a compatible display and operating system configuration. Standard-range screens may show no brightness difference.
 
-If that path is unavailable or an image cannot be read safely, the original content stays visible. Text is intended for short, single-line emphasis up to 128 characters.
+The renderer uploads a text mask or image to WebGPU and renders to an `rgba16float` canvas with extended tone mapping. Text falls back to ordinary white; images fall back to their original `<img>`.
 
-## Development
+Demo assets are kept in the repository and excluded from the runtime package.
 
-```bash
-npm test
-npm pack --dry-run
-```
+## Contributing
 
-## Publish the demo
+See [CONTRIBUTING.md](https://github.com/echohtp/brightpixels/blob/main/CONTRIBUTING.md) for development and maintenance.
 
-In the GitHub repository, open **Settings → Pages**, choose **Deploy from a
-branch**, then select **main** and **/(root)**. The checked-in `index.html`
-imports the local `index.js`, so the demo does not depend on npm or a CDN.
+## License
 
-Brightpixels is available under the [MIT License](./LICENSE.txt).
+[MIT](./LICENSE.txt)
