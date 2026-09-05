@@ -1,0 +1,64 @@
+{
+  "name": "brightpixels",
+  "version": "0.1.0",
+  "description": "A tiny dependency-free library that lifts web text and image highlights into HDR.",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "browser": "./index.js",
+  "types": "./index.d.ts",
+  "unpkg": "./index.js",
+  "jsdelivr": "./index.js",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./react": {
+      "types": "./react.d.ts",
+      "import": "./react.js",
+      "default": "./react.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "react.js",
+    "react.d.ts",
+    "README.md",
+    "LICENSE.txt"
+  ],
+  "sideEffects": [
+    "./index.js",
+    "./react.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "hdr",
+    "text",
+    "image",
+    "media",
+    "react",
+    "typography",
+    "web-component",
+    "webgpu",
+    "custom-element",
+    "brighter-than-white"
+  ],
+  "homepage": "https://echohtp.github.io/brightpixels/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echohtp/brightpixels.git"
+  },
+  "bugs": {
+    "url": "https://github.com/echohtp/brightpixels/issues"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

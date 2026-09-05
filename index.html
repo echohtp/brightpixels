@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050506" />
+    <meta
+      name="description"
+      content="Brightpixels is a tiny JavaScript library for brighter-than-white HDR text and image highlights."
+    />
+    <title>Brightpixels — HDR highlights for the web</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: #050506;
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 50% -15%, #172034 0, #090b10 28rem, #050506 52rem),
+          #050506;
+        color: #a6a6aa;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      a {
+        color: #f7f7f8;
+        text-underline-offset: 0.22em;
+      }
+
+      code {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      }
+
+      .shell {
+        width: min(100% - 2rem, 70rem);
+        margin-inline: auto;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 4.5rem;
+        border-bottom: 1px solid #ffffff17;
+      }
+
+      .brand {
+        color: #fff;
+        font-weight: 760;
+        letter-spacing: -0.035em;
+      }
+
+      .links {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.85rem;
+      }
+
+      .links a {
+        color: #a6a6aa;
+        text-decoration: none;
+      }
+
+      .hero {
+        min-height: min(48rem, calc(100svh - 4.5rem));
+        display: grid;
+        align-content: center;
+        padding-block: 5rem;
+      }
+
+      .eyebrow,
+      .section-label {
+        margin: 0 0 1rem;
+        color: #75757c;
+        font: 650 0.72rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      .statement {
+        font-family: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, sans-serif;
+        font-stretch: condensed;
+        text-wrap: balance;
+      }
+
+      h1 {
+        max-width: 9ch;
+        margin: 0;
+        color: #77777d;
+        font-size: clamp(4rem, 17vw, 11rem);
+        font-weight: 800;
+        letter-spacing: -0.075em;
+        line-height: 0.83;
+      }
+
+      .hero-copy {
+        max-width: 34rem;
+        margin: 2rem 0 0;
+        color: #8b8b91;
+        font-size: clamp(1.05rem, 2.3vw, 1.3rem);
+      }
+
+      .install {
+        width: fit-content;
+        max-width: 100%;
+        margin-top: 1.75rem;
+        padding: 0.72rem 0.9rem;
+        overflow-x: auto;
+        border: 1px solid #ffffff18;
+        border-radius: 0.75rem;
+        background: #ffffff08;
+        color: #d2d2d5;
+        font-size: 0.82rem;
+        white-space: nowrap;
+      }
+
+      section {
+        padding-block: clamp(5rem, 11vw, 9rem);
+        border-top: 1px solid #ffffff17;
+      }
+
+      .prose {
+        max-width: 44rem;
+      }
+
+      h2 {
+        max-width: 15ch;
+        margin: 0 0 2.25rem;
+        color: #6f6f75;
+        font-size: clamp(2.4rem, 8vw, 5.7rem);
+        font-weight: 760;
+        letter-spacing: -0.055em;
+        line-height: 0.94;
+      }
+
+      .prose p {
+        margin: 0 0 1.35rem;
+        font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+      }
+
+      .statement {
+        max-width: 18ch;
+        margin: 5rem 0 0;
+        color: #707076;
+        font-size: clamp(2.3rem, 8vw, 6rem);
+        font-weight: 780;
+        letter-spacing: -0.055em;
+        line-height: 0.94;
+      }
+
+      .image-grid {
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      bright-image,
+      bright-image img {
+        display: block;
+        width: 100%;
+        border-radius: clamp(1rem, 3vw, 2rem);
+      }
+
+      bright-image img {
+        height: auto;
+      }
+
+      .caption {
+        max-width: 42rem;
+        margin: 0;
+        color: #77777d;
+        font-size: 0.9rem;
+      }
+
+      .code-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      pre {
+        margin: 0;
+        padding: 1.1rem;
+        overflow-x: auto;
+        border: 1px solid #ffffff18;
+        border-radius: 1rem;
+        background: #09090b;
+        color: #d7d7da;
+        font-size: 0.78rem;
+        line-height: 1.7;
+      }
+
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-block: 2rem 3rem;
+        border-top: 1px solid #ffffff17;
+        color: #6f6f75;
+        font-size: 0.82rem;
+      }
+
+      @media (min-width: 48rem) {
+        .shell {
+          width: min(100% - 4rem, 70rem);
+        }
+
+        .image-grid {
+          grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 0.7fr);
+          align-items: end;
+        }
+
+        .code-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+    <script type="module" src="./index.js"></script>
+  </head>
+  <body>
+    <header class="shell">
+      <span class="brand">Brightpixels</span>
+      <nav class="links" aria-label="Project links">
+        <a href="#example">Example</a>
+        <a href="./README.md">Docs</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero shell">
+        <p class="eyebrow">HDR highlights for the web</p>
+        <h1>Make pixels <bright-text intensity="16">brighter.</bright-text></h1>
+        <p class="hero-copy">
+          One tiny JavaScript package for brighter-than-white text and image
+          highlights. No animation. No glow. Just the brightest pixels your
+          browser and display can produce.
+        </p>
+        <pre class="install"><code>npm install brightpixels</code></pre>
+        <p class="caption">npm release pending. This demo runs the local library source.</p>
+      </section>
+
+      <section class="shell" id="example">
+        <div class="prose">
+          <p class="section-label">Text emphasis</p>
+          <h2>Attention follows <bright-text intensity="14">light.</bright-text></h2>
+          <p>
+            Most pages make every important idea compete with the same ordinary
+            white. Brightpixels lets a few words rise above that ceiling. Use it
+            when the reader reaches the <bright-text intensity="9">one fact that matters</bright-text>,
+            the proof behind a claim, or the action that should not be missed.
+          </p>
+          <p>
+            Restraint makes the contrast work. Keep the surrounding text calm,
+            then reserve HDR for <bright-text intensity="12">the sentence worth remembering.</bright-text>
+          </p>
+        </div>
+
+        <p class="statement">
+          Select it. Copy it. The <bright-text intensity="16">letters stay real.</bright-text>
+        </p>
+      </section>
+
+      <section class="shell">
+        <p class="section-label">Image highlights</p>
+        <div class="image-grid">
+          <bright-image intensity="8">
+            <img
+              src="./highlights.svg"
+              alt="White sun above an abstract blue and violet mountain horizon"
+              width="1600"
+              height="900"
+            />
+          </bright-image>
+          <p class="caption">
+            The image wrapper lifts only the lightest pixels. The original image,
+            dimensions, and alternative text stay in the page as the fallback.
+          </p>
+        </div>
+      </section>
+
+      <section class="shell">
+        <p class="section-label">Two wrappers, one setting</p>
+        <div class="code-grid">
+          <pre><code>&lt;bright-text intensity="12"&gt;
+  Important words
+&lt;/bright-text&gt;</code></pre>
+          <pre><code>&lt;bright-image intensity="8"&gt;
+  &lt;img src="photo.jpg" alt="…" /&gt;
+&lt;/bright-image&gt;</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell">
+      <span>Brightpixels · MIT License</span>
+      <span>Best viewed on an HDR display.</span>
+    </footer>
+  </body>
+</html>
