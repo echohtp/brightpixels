@@ -34,6 +34,7 @@ function refresh() {
   const report = collectReport();
   $('report-json').value = JSON.stringify(report, null, 2);
   $('white-mode').textContent = !report.settings.enabled ? 'HDR disabled — reference output'
+    : $('white-hdr').fallbackReason === 'offscreen' ? 'HDR setup deferred until near viewport'
     : $('white-hdr').mode === 'hdr' ? 'HDR renderer active' : 'Fallback / renderer unavailable';
   const rows = {
     'WebGPU API': report.capabilities.webgpuApi ? 'Exposed' : 'Unavailable',

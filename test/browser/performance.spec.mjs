@@ -26,7 +26,7 @@ test('real GPU defers setup, applies quality, and stays idle while scrolling', a
   await page.goto('/test/browser/fixture.html');
   await page.waitForFunction(() => window.api);
   await page.evaluate(() => {
-    document.body.innerHTML = '<div style="height:2400px"></div><bright-image id="image" style="display:block;width:700px"><img style="width:100%;display:block" src="/assets/examples/chrome.png"></bright-image>';
+    document.body.innerHTML = '<div style="height:2400px"></div><bright-image id="image" style="display:block;width:700px"><img style="width:100%;height:auto;display:block" src="/assets/examples/chrome.png"></bright-image>';
   });
   await expect(page.locator('#image')).toHaveAttribute('data-brightpixels-reason', 'offscreen');
   expect(await page.locator('#image').evaluate((el) => el._gpu)).toBe(null);

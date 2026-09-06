@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import 'brightpixels/react';
-import { brighten, brightenImages, configureBrightpixels, getBrightpixelsConfig, type BrightShapeElement } from 'brightpixels';
+import { brighten, brightenImages, configureBrightpixels, getBrightpixelsConfig, getBrightpixelsCapabilities, type BrightShapeElement } from 'brightpixels';
 const ref = createRef<BrightShapeElement>();
 export const Example = () => <>
   <bright-text color="color(display-p3 1 0.35 0)" intensity={4}>Ready</bright-text>
@@ -18,3 +18,9 @@ brightenImages('.icon', { boost: 'all' });
 ref.current?.setStatus('surprise');
 // @ts-expect-error Unknown primitives must not be accepted.
 export const Invalid = <bright-shape shape="unknown" />;
+
+configureBrightpixels({ quality: 'low' });
+getBrightpixelsCapabilities().hdr.valueOf();
+ref.current?.fallbackReason?.toUpperCase();
+// @ts-expect-error Unknown quality presets must not be accepted.
+configureBrightpixels({ quality: 'ultra' });
