@@ -1605,6 +1605,7 @@ export function brightenFeedback(targets, options = {}) {
     let selected = false, frame = 0, pressed = false, pointerId = null, keyboardKey = null, disposed = false;
     const listeners = [];
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const prefersReducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     function listen(object, type, callback) {
       object.addEventListener(type, callback); listeners.push(() => object.removeEventListener(type, callback));
     }
@@ -1624,11 +1625,11 @@ export function brightenFeedback(targets, options = {}) {
       edge.style.visibility = 'visible';
       const color = options.color || FEEDBACK_COLORS[kind] || FEEDBACK_COLORS.notify;
       paint(color, decay ? 8 : 1);
-      if (reduced?.matches) { idle(); return; }
+      if (prefersReducedMotion()) { idle(); return; }
       let start;
       const tick = (now) => {
         frame = 0;
-        if (disposed || !target.isConnected || document.hidden || edge._shape._nearViewport === false || reduced?.matches) { idle(); return; }
+        if (disposed || !target.isConnected || document.hidden || edge._shape._nearViewport === false || prefersReducedMotion()) { idle(); return; }
         start ??= now;
         const progress = Math.min(1, (now - start) / duration);
         const light = decay ? (1 - progress) ** 2 : Math.sin(Math.PI * progress) ** 2;
