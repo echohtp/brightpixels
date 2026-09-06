@@ -24,3 +24,10 @@ getBrightpixelsCapabilities().hdr.valueOf();
 ref.current?.fallbackReason?.toUpperCase();
 // @ts-expect-error Unknown quality presets must not be accepted.
 configureBrightpixels({ quality: 'ultra' });
+
+import { brightenEdges } from 'brightpixels';
+const [edge] = brightenEdges('.card', { trigger: 'hover', thickness: 2 });
+edge?.update({ color: 'red', offset: 4 });
+edge?.destroy();
+// @ts-expect-error Only supported interaction triggers are accepted.
+brightenEdges('.card', { trigger: 'click' });

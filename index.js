@@ -1468,6 +1468,117 @@ function makeShapeElementClass() {
   };
 }
 
+const edgeEnhancements = new WeakMap();
+
+function makeEdgeElementClass() {
+  return class BrightEdgeElement extends HTMLElement {
+    static get observedAttributes() { return ["color", "intensity", "thickness", "offset", "radius", "trigger"]; }
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.innerHTML = `<style>
+        :host { position:absolute; display:block; pointer-events:none; z-index:1; }
+        :host([hidden]) { display:none; }
+        bright-shape { display:block; width:100%; height:100%; }
+      </style><bright-shape shape="outline" aria-hidden="true"></bright-shape>`;
+      this._shape = this.shadowRoot.querySelector("bright-shape");
+      this._refresh = () => this.refresh();
+      this._hover = false;
+      this._enter = () => { this._hover = true; this.refresh(); };
+      this._leave = () => { this._hover = false; this.refresh(); };
+      this._resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(this._refresh) : null;
+      this._styleObserver = typeof MutationObserver === "function" ? new MutationObserver(this._refresh) : null;
+    }
+    connectedCallback() {
+      this.setAttribute("aria-hidden", "true");
+      const target = this.parentElement;
+      if (!target) return;
+      this._target = target;
+      this._hover = target.matches(":hover");
+      if (getComputedStyle(target).position === "static") {
+        this._position = { value: target.style.getPropertyValue("position"), priority: target.style.getPropertyPriority("position") };
+        target.style.setProperty("position", "relative");
+      }
+      target.addEventListener("pointerenter", this._enter);
+      target.addEventListener("pointerleave", this._leave);
+      target.addEventListener("focusin", this._refresh);
+      target.addEventListener("focusout", this._refresh);
+      this._resizeObserver?.observe(target);
+      this._styleObserver?.observe(target, { attributes: true, attributeFilter: ["class", "style", "disabled"] });
+      window.addEventListener("resize", this._refresh);
+      this.refresh();
+    }
+    disconnectedCallback() {
+      const target = this._target;
+      this._resizeObserver?.disconnect();
+      this._styleObserver?.disconnect();
+      window.removeEventListener("resize", this._refresh);
+      if (target) {
+        target.removeEventListener("pointerenter", this._enter);
+        target.removeEventListener("pointerleave", this._leave);
+        target.removeEventListener("focusin", this._refresh);
+        target.removeEventListener("focusout", this._refresh);
+        if (this._position && target.style.position === "relative" && !target.style.getPropertyPriority("position")) {
+          if (this._position.value) target.style.setProperty("position", this._position.value, this._position.priority);
+          else target.style.removeProperty("position");
+        }
+      }
+      this._position = null;
+      this._target = null;
+      this._hover = false;
+    }
+    attributeChangedCallback() { this.refresh(); }
+    get target() { return this._target || null; }
+    get mode() { return this._shape.mode; }
+    get fallbackReason() { return this._shape.fallbackReason; }
+    update(options = {}) {
+      for (const key of ["color", "intensity", "thickness", "offset", "radius", "trigger"]) {
+        if (options[key] === null) this.removeAttribute(key);
+        else if (options[key] !== undefined) this.setAttribute(key, String(options[key]));
+      }
+      return this;
+    }
+    refresh() {
+      const target = this._target;
+      if (!target || !this.isConnected) return;
+      const style = getComputedStyle(target);
+      const number = (name, fallback, min, max) => shapeNumber(this, name, fallback, min, max);
+      const offset = number("offset", 0, 0, 32);
+      this.hidden = this.getAttribute("trigger") === "hover" ? !this._hover
+        : this.getAttribute("trigger") === "focus" ? !target.matches(":focus-within") : false;
+      for (const side of ["top", "right", "bottom", "left"]) {
+        this.style[side] = `${-(parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0) - offset}px`;
+      }
+      this._shape.color = this.getAttribute("color") || style.borderTopColor || style.color;
+      this._shape.intensity = number("intensity", 4, 1, 16);
+      this._shape.thickness = number("thickness", Math.max(1, parseFloat(style.borderTopWidth) || 0), 0.5, 32);
+      this._shape.radius = number("radius", (parseFloat(style.borderTopLeftRadius) || 0) + offset, 0, 1000);
+    }
+    destroy() {
+      if (this._target && edgeEnhancements.get(this._target) === this) edgeEnhancements.delete(this._target);
+      this.remove();
+    }
+  };
+}
+
+/** Add an inert HDR edge to existing non-replaced HTML containers. */
+export function brightenEdges(targets, options = {}) {
+  if (!hasDOM()) return [];
+  defineBrightpixels();
+  return Array.from(resolveElements(targets)).filter((target) => target instanceof HTMLElement &&
+    !["input", "img", "textarea", "select", "option", "video", "audio", "canvas", "iframe", "hr", "br", "table", "tr", "tbody", "thead", "tfoot", "col", "colgroup", "html", "head"].includes(target.localName))
+    .map((target) => {
+      let edge = edgeEnhancements.get(target);
+      if (!edge || edge.parentElement !== target) {
+        edge = document.createElement("bright-edge");
+        edge.update(options);
+        edgeEnhancements.set(target, edge);
+        target.append(edge);
+      } else edge.update(options);
+      return edge;
+    });
+}
+
 export function defineBrightpixels() {
   if (!hasDOM()) return null;
 
@@ -1484,6 +1595,8 @@ export function defineBrightpixels() {
   if (!customElements.get("bright-shape")) {
     customElements.define("bright-shape", makeShapeElementClass());
   }
+
+  if (!customElements.get("bright-edge")) customElements.define("bright-edge", makeEdgeElementClass());
 
   return BrightTextElement;
 }

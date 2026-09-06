@@ -482,3 +482,41 @@ signals and physical HDR output remain device-dependent.
 
 See [release notes](https://github.com/echohtp/brightpixels/blob/main/CHANGELOG.md) and [hardware validation status](https://github.com/echohtp/brightpixels/blob/main/HARDWARE_VALIDATION.md)
 for tested behavior and compatibility details.
+
+### Existing-element edges (unreleased)
+
+[Try the edge demo](https://echohtp.github.io/brightpixels/edges.html). This helper
+is in repository source; it is not included in the tagged 1.0.0 package.
+
+```js
+import { brightenEdges } from './index.js';
+
+const [edge] = brightenEdges('.my-card', {
+  color: 'color(display-p3 0.2 1 0.65)',
+  intensity: 4,
+  thickness: 2,
+  trigger: 'always', // or 'hover' / 'focus' (includes focus within)
+});
+edge.update({ offset: 4, trigger: 'focus' });
+edge.refresh(); // re-read styles after external stylesheet changes
+edge.destroy();
+```
+
+The helper appends an absolutely positioned, pointer-inert, accessibility-hidden
+`bright-edge` overlay. It preserves existing children, handlers and focus styles.
+Repeated calls update the existing enhancement. Static targets temporarily receive
+`position: relative`; removing the enhancement restores the prior inline value
+if it has not been changed by the application. Positioning can affect existing
+absolutely positioned descendants, so use an existing positioned container where
+that matters.
+
+Use block or inline-block HTML containers such as cards, buttons and links.
+Replaced elements and controls that cannot contain an overlay are skipped; enhance
+a containing element for inputs, images and SVGs. Existing overflow clipping still
+applies to outward offsets. The default uses the top border color/width and a
+uniform pixel corner radius; set `radius` explicitly for percentage or asymmetric
+corners. Host class/style changes and resizing refresh the edge automatically.
+
+This enhances an edge only; fills, arbitrary SVG strokes, and text decorations are
+not part of this helper. HDR still depends on the renderer and display, with an
+ordinary-color edge fallback when HDR is unavailable.

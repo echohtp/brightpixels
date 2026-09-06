@@ -104,3 +104,32 @@ declare global {
     "bright-shape": BrightShapeElement;
   }
 }
+
+export interface BrightEdgeOptions {
+  /** Defaults to the target's computed top-border color. */
+  color?: string | null;
+  /** Defaults to 4; clamped to 1–16. */
+  intensity?: number | null;
+  /** Stroke width in CSS pixels, 0.5–32. Defaults to the top-border width, minimum 1. */
+  thickness?: number | null;
+  /** Distance outside the border box, 0–32 CSS pixels. Overflow rules still apply. */
+  offset?: number | null;
+  /** Uniform corner radius in CSS pixels. Defaults to the target's top-left pixel radius plus offset. */
+  radius?: number | null;
+  trigger?: 'always' | 'hover' | 'focus' | null;
+}
+export interface BrightEdgeElement extends HTMLElement {
+  readonly target: HTMLElement | null;
+  readonly mode: 'hdr' | 'fallback' | null;
+  readonly fallbackReason: BrightpixelsFallbackReason | null;
+  update(options?: BrightEdgeOptions): this;
+  /** Re-read target styles after stylesheet or theme changes. */
+  refresh(): void;
+  /** Remove the edge and restore positioning when still owned by the enhancement. */
+  destroy(): void;
+}
+/** Enhance existing HTML containers. Unsupported replaced/form elements are skipped. */
+export declare function brightenEdges(targets: string | Element | Iterable<Element>, options?: BrightEdgeOptions): BrightEdgeElement[];
+declare global {
+  interface HTMLElementTagNameMap { 'bright-edge': BrightEdgeElement; }
+}
