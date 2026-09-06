@@ -1,0 +1,8 @@
+/* Let the demo's light feedback provide touch activation feedback. */
+:where(button, a[href], [role="button"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+/* Preserve :focus-visible for keyboard users and browser accessibility heuristics. */
+:where(button, a[href], [role="button"]):focus:not(:focus-visible) {
+  outline: none;
+}

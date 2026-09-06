@@ -63,3 +63,12 @@ test('sheet has a direct tap path and supports Escape', async ({ page }) => {
   await expect(page.locator('#actions')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('touch highlight is transparent while keyboard focus remains visible', async ({ page }) => {
+  await page.locator('[data-dock=Saved]').tap();
+  expect(await page.locator('[data-dock=Saved]').evaluate((el) => getComputedStyle(el).webkitTapHighlightColor)).toBe('rgba(0, 0, 0, 0)');
+  expect(await page.locator('[data-dock=Saved]').evaluate((el) => el.matches(':focus-visible') || getComputedStyle(el).outlineStyle === 'none')).toBe(true);
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.activeElement.matches(':focus-visible'))).toBe(true);
+  expect(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle)).not.toBe('none');
+});
