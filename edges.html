@@ -20,9 +20,9 @@
     <section class="intro"><p class="eyebrow">Enhance existing elements</p><h1>Your UI.<br>Extra light.</h1><p class="lead">Keep your cards, buttons, links, and event handlers. Add an HDR edge with one call.</p></section>
     <section aria-label="Existing element examples">
       <div class="examples"><article class="example" id="edge-card"><h2>Your existing card</h2><p>This is an ordinary HTML article with a bright edge added to it.</p></article></div>
-      <div class="actions"><button id="edge-button" type="button">Hover or click me</button><a id="edge-link" href="#usage">Tab to focus this link</a></div>
+      <div class="actions"><button id="edge-button" type="button">Hover or press me</button><a id="edge-link" href="#usage">Tab to focus this link</a></div>
       <p id="click-status" role="status">The button keeps its original click handler.</p>
-      <div class="button-row"><label class="check"><input id="enable-edges" type="checkbox" checked> Enable enhancements</label><label class="check"><input id="enable-hdr" type="checkbox" checked> Enable HDR</label></div>
+      <div class="button-row"><label class="check"><input id="enable-edges" type="checkbox" checked> Enable enhancements</label><label class="check"><input id="show-all-edges" type="checkbox"> Show all edges</label><label class="check"><input id="enable-hdr" type="checkbox" checked> Enable HDR</label></div>
       <p class="note">HDR depends on your display and browser. The edge has an ordinary-color fallback. Existing focus styles remain active.</p>
     </section>
     <section id="usage"><h2>One call. Your styles.</h2><pre><code>import { brightenEdges } from 'brightpixels';

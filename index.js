@@ -1477,14 +1477,17 @@ function makeEdgeElementClass() {
       super();
       this.attachShadow({ mode: "open" });
       this.shadowRoot.innerHTML = `<style>
-        :host { position:absolute; display:block; pointer-events:none; z-index:1; }
+        :host { position:absolute; display:block; pointer-events:none; z-index:1; dynamic-range-limit:no-limit; }
         :host([hidden]) { display:none; }
-        bright-shape { display:block; width:100%; height:100%; }
+        bright-shape { position:absolute; inset:0; display:block; width:100%; height:100%;
+          min-width:0; min-height:0; padding:0; box-sizing:border-box; }
       </style><bright-shape shape="outline" aria-hidden="true"></bright-shape>`;
       this._shape = this.shadowRoot.querySelector("bright-shape");
       this._refresh = () => this.refresh();
       this._hover = false;
-      this._enter = () => { this._hover = true; this.refresh(); };
+      this._enter = (event) => { this._hover = event.pointerType !== "touch"; this.refresh(); };
+      this._press = (event) => { if (event.pointerType === "touch") { this._pressed = true; this.refresh(); } };
+      this._release = () => { this._pressed = false; this.refresh(); };
       this._leave = () => { this._hover = false; this.refresh(); };
       this._resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(this._refresh) : null;
       this._styleObserver = typeof MutationObserver === "function" ? new MutationObserver(this._refresh) : null;
@@ -1494,13 +1497,16 @@ function makeEdgeElementClass() {
       const target = this.parentElement;
       if (!target) return;
       this._target = target;
-      this._hover = target.matches(":hover");
+      this._hover = Boolean(window.matchMedia?.("(any-hover: hover)").matches) && target.matches(":hover");
       if (getComputedStyle(target).position === "static") {
         this._position = { value: target.style.getPropertyValue("position"), priority: target.style.getPropertyPriority("position") };
         target.style.setProperty("position", "relative");
       }
       target.addEventListener("pointerenter", this._enter);
       target.addEventListener("pointerleave", this._leave);
+      target.addEventListener("pointerdown", this._press);
+      window.addEventListener("pointerup", this._release);
+      window.addEventListener("pointercancel", this._release);
       target.addEventListener("focusin", this._refresh);
       target.addEventListener("focusout", this._refresh);
       this._resizeObserver?.observe(target);
@@ -1513,9 +1519,12 @@ function makeEdgeElementClass() {
       this._resizeObserver?.disconnect();
       this._styleObserver?.disconnect();
       window.removeEventListener("resize", this._refresh);
+      window.removeEventListener("pointerup", this._release);
+      window.removeEventListener("pointercancel", this._release);
       if (target) {
         target.removeEventListener("pointerenter", this._enter);
         target.removeEventListener("pointerleave", this._leave);
+        target.removeEventListener("pointerdown", this._press);
         target.removeEventListener("focusin", this._refresh);
         target.removeEventListener("focusout", this._refresh);
         if (this._position && target.style.position === "relative" && !target.style.getPropertyPriority("position")) {
@@ -1526,6 +1535,7 @@ function makeEdgeElementClass() {
       this._position = null;
       this._target = null;
       this._hover = false;
+      this._pressed = false;
     }
     attributeChangedCallback() { this.refresh(); }
     get target() { return this._target || null; }
@@ -1544,7 +1554,7 @@ function makeEdgeElementClass() {
       const style = getComputedStyle(target);
       const number = (name, fallback, min, max) => shapeNumber(this, name, fallback, min, max);
       const offset = number("offset", 0, 0, 32);
-      this.hidden = this.getAttribute("trigger") === "hover" ? !this._hover
+      this.hidden = this.getAttribute("trigger") === "hover" ? !(this._hover || this._pressed)
         : this.getAttribute("trigger") === "focus" ? !target.matches(":focus-within") : false;
       for (const side of ["top", "right", "bottom", "left"]) {
         this.style[side] = `${-(parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0) - offset}px`;

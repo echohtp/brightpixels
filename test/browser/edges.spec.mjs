@@ -67,3 +67,48 @@ test('edge initializes real HDR and follows global disable', async ({ page }, in
   await page.evaluate(() => window.edge.destroy());
   expect(await page.evaluate(() => window.edge._shape._bright._gpu)).toBe(null);
 });
+
+test('edge geometry matches small mobile targets without outline padding', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    document.body.innerHTML = '<button id="target" style="width:120px;height:32px;padding:0;border:2px solid red;border-radius:8px">Small</button>';
+    [window.edge] = window.api.brightenEdges('#target');
+  });
+  const geometry = await page.evaluate(() => {
+    const target = document.querySelector('#target').getBoundingClientRect();
+    const shape = window.edge._shape.getBoundingClientRect();
+    return { target: [target.x, target.y, target.width, target.height], shape: [shape.x, shape.y, shape.width, shape.height] };
+  });
+  expect(geometry.shape).toEqual(geometry.target);
+});
+
+test('touch press activates hover edges and cancellation clears them', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    document.body.innerHTML = '<button id="target">Touch</button>';
+    [window.edge] = window.api.brightenEdges('#target', { trigger: 'hover' });
+  });
+  await page.locator('#target').dispatchEvent('pointerenter', { pointerType: 'touch' });
+  await expect(page.locator('bright-edge')).toBeHidden();
+  await page.locator('#target').dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await expect(page.locator('bright-edge')).toBeVisible();
+  await page.locator('#target').dispatchEvent('pointercancel', { pointerType: 'touch', bubbles: true });
+  await expect(page.locator('bright-edge')).toBeHidden();
+  await page.locator('#target').dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await page.locator('#target').dispatchEvent('pointerup', { pointerType: 'touch', bubbles: true });
+  await expect(page.locator('bright-edge')).toBeHidden();
+});
+
+test('mobile demo exposes all edges without hover and keeps toggles reversible', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/edges.html');
+  await page.locator('#show-all-edges').check();
+  for (const id of ['edge-card', 'edge-button', 'edge-link']) await expect(page.locator(`#${id} bright-edge`)).toBeVisible();
+  await page.locator('#enable-edges').uncheck();
+  await expect(page.locator('bright-edge')).toHaveCount(0);
+  await page.locator('#enable-edges').check();
+  await expect(page.locator('#edge-link bright-edge')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

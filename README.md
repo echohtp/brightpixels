@@ -512,7 +512,9 @@ that matters.
 
 Use block or inline-block HTML containers such as cards, buttons and links.
 Replaced elements and controls that cannot contain an overlay are skipped; enhance
-a containing element for inputs, images and SVGs. Existing overflow clipping still
+a containing element for inputs, images and SVGs. Hover-triggered edges also appear while pressing with touch. The demo’s “Show all
+edges” control makes interaction examples visible without hover or keyboard focus.
+Existing overflow clipping still
 applies to outward offsets. The default uses the top border color/width and a
 uniform pixel corner radius; set `radius` explicitly for percentage or asymmetric
 corners. Host class/style changes and resizing refresh the edge automatically.

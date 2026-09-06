@@ -5,7 +5,10 @@ const specifications = [
   ['#edge-link', { color: '#ffd47a', thickness: 2, offset: 5, trigger: 'focus' }],
 ];
 let edges = [];
-function enable() { edges = specifications.flatMap(([target, options]) => brightenEdges(target, options)); }
+function enable() {
+  const showAll = document.querySelector('#show-all-edges').checked;
+  edges = specifications.flatMap(([target, options]) => brightenEdges(target, { ...options, trigger: showAll ? 'always' : options.trigger || 'always' }));
+}
 enable();
 let clicks = 0;
 document.querySelector('#edge-button').addEventListener('click', () => {
@@ -16,3 +19,7 @@ document.querySelector('#enable-edges').addEventListener('change', (event) => {
   else { for (const edge of edges) edge.destroy(); edges = []; }
 });
 document.querySelector('#enable-hdr').addEventListener('change', (event) => configureBrightpixels({ enabled: event.target.checked }));
+
+document.querySelector('#show-all-edges').addEventListener('change', () => {
+  if (document.querySelector('#enable-edges').checked) enable();
+});
