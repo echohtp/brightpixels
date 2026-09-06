@@ -551,3 +551,20 @@ light works with touch, mouse, and keyboard. Reduced motion skips animated bloom
 while preserving static press and selection feedback. Pulses stop offscreen or
 when the page is hidden. Removing the target destroys the controller and its edge;
 reattach feedback after reinserting the target. These helpers are not in 1.0.0 yet.
+
+### Touch recipes (unreleased)
+
+[Open the Touch Lab](https://echohtp.github.io/brightpixels/mobile.html) for five
+compositions using the feedback helper and ordinary HTML controls:
+
+- Swipe-to-confirm with a native range, release threshold and keyboard alternative.
+- Three-choice scrubbing with persistent selection and directly tappable buttons.
+- Long-press actions in a native modal bottom sheet; moving cancels the hold and a
+  separate button opens the same actions without a gesture.
+- A one-tap favorite with a filled bright heart and reversible selected state.
+- A fixed bottom dock with safe-area padding and a selected destination preview.
+
+These are demo recipes, not new application actions or a navigation framework.
+The demos preserve vertical scrolling around gestures, use 48px minimum button
+heights, and keep confirmation messages separate from color. No vibration API is
+required. Demo source lives in `assets/mobile.js` and `mobile.html`.
