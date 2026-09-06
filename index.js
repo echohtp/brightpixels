@@ -1560,8 +1560,8 @@ function makeEdgeElementClass() {
       for (const side of ["top", "right", "bottom", "left"]) {
         this.style[side] = `${-(parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0) - offset}px`;
       }
-      this._shape.color = this.getAttribute("color") || style.borderTopColor || style.color;
-      this._shape.intensity = number("intensity", 4, 1, 16);
+      this._shape.color = this._feedbackColor ?? (this.getAttribute("color") || style.borderTopColor || style.color);
+      this._shape.intensity = this._feedbackIntensity ?? number("intensity", 4, 1, 16);
       this._shape.thickness = number("thickness", Math.max(1, parseFloat(style.borderTopWidth) || 0), 0.5, 32);
       this._shape.radius = number("radius", (parseFloat(style.borderTopLeftRadius) || 0) + offset, 0, 1000);
     }
@@ -1609,17 +1609,21 @@ export function brightenFeedback(targets, options = {}) {
       object.addEventListener(type, callback); listeners.push(() => object.removeEventListener(type, callback));
     }
     function stop() { cancelFrame(frame); frame = 0; }
+    function paint(color, intensity) {
+      edge._feedbackColor = color; edge._feedbackIntensity = intensity;
+      edge._shape.color = color; edge._shape.intensity = intensity;
+    }
     function idle() {
       stop();
       edge.style.visibility = selected ? 'visible' : 'hidden';
-      edge._shape.color = baseColor;
-      edge._shape.intensity = selected ? 2 : 1;
+      paint(baseColor, selected ? 2 : 1);
     }
     function animate(kind = 'notify', duration = 650, decay = false) {
       if (disposed || !target.isConnected || document.hidden) return;
       stop();
       edge.style.visibility = 'visible';
-      edge._shape.color = options.color || FEEDBACK_COLORS[kind] || FEEDBACK_COLORS.notify;
+      const color = options.color || FEEDBACK_COLORS[kind] || FEEDBACK_COLORS.notify;
+      paint(color, decay ? 8 : 1);
       if (reduced?.matches) { idle(); return; }
       let start;
       const tick = (now) => {
@@ -1628,7 +1632,7 @@ export function brightenFeedback(targets, options = {}) {
         start ??= now;
         const progress = Math.min(1, (now - start) / duration);
         const light = decay ? (1 - progress) ** 2 : Math.sin(Math.PI * progress) ** 2;
-        edge._shape.intensity = 1 + 7 * light;
+        paint(color, 1 + 7 * light);
         if (progress < 1) frame = scheduleFrame(tick);
         else idle();
       };
@@ -1638,7 +1642,7 @@ export function brightenFeedback(targets, options = {}) {
     function down() {
       if (disposed || disabled()) return;
       stop(); pressed = true;
-      edge.style.visibility = 'visible'; edge._shape.color = baseColor; edge._shape.intensity = 8;
+      edge.style.visibility = 'visible'; paint(baseColor, 8);
     }
     function release(cancelled = false) {
       if (!pressed) return;

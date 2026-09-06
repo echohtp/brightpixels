@@ -34,6 +34,7 @@ test('keyboard, disabled controls, reduced motion and detach cancellation', asyn
   expect(await page.evaluate(() => window.feedback.edge._shape.intensity)).toBe(8);
   await page.keyboard.up('Space');
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   await page.evaluate(() => window.feedback.flash('error'));
   expect(await page.evaluate(() => window.feedback.edge.style.visibility)).toBe('hidden');
   await page.evaluate(() => { document.querySelector('#target').disabled = true; });
