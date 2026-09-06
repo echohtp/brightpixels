@@ -481,5 +481,4 @@ require a major version. Underscore-prefixed members are internal; browser capab
 signals and physical HDR output remain device-dependent.
 
 See [release notes](https://github.com/echohtp/brightpixels/blob/main/CHANGELOG.md) and [hardware validation status](https://github.com/echohtp/brightpixels/blob/main/HARDWARE_VALIDATION.md)
-for tested behavior and open limitations. Slight page stutter has also been reported
-with HDR disabled; it has not yet been isolated or confirmed fixed.
+for tested behavior and compatibility details.

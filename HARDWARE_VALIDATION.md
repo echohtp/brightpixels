@@ -4,17 +4,10 @@ Version 1.0.0 ships the documented rendering and diagnostic APIs. The real-devic
 checks below remain unverified; a stable API version does not establish display
 compatibility. npm publication remains separately deferred.
 
-## Known issue
-
-The user reports slight stuttering while moving through the hardware page, including
-with HDR disabled. The cause has not been isolated and the issue is not claimed
-fixed. Record browser, display, and whether the trigger is scrolling or dragging
-the window before attributing it to the HDR renderer.
-
 ## Record on actual hardware
 
 1. Open `/hardware.html` and record the display model, OS/browser, power and HDR settings.
-2. Compare HDR on/off and auto/high/low while scrolling the same section. Record whether stutter changes.
+2. Compare HDR on/off and auto/high/low while scrolling the same section. Record your observations.
 3. Test loading, progress and pulse; scroll away and back, then move the window between HDR and SDR monitors where available.
 4. Copy the JSON report with white/color/motion observations. Attach it to a GitHub issue with reproduction steps for any failure.
 

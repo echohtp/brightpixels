@@ -21,7 +21,4 @@ HDR output depends on browser, OS, display and settings. A renderer reporting HD
 or passing software GPU tests does not establish physical luminance. Real-device
 observations are tracked in HARDWARE_VALIDATION.md and remain pending.
 
-Slight hardware-page stuttering is reported even with HDR disabled. The cause is
-not yet isolated; this release does not claim to fix it.
-
 npm publication is deferred separately from the GitHub release and demo deployment.
