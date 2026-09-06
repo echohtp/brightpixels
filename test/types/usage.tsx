@@ -31,3 +31,10 @@ edge?.update({ color: 'red', offset: 4 });
 edge?.destroy();
 // @ts-expect-error Only supported interaction triggers are accepted.
 brightenEdges('.card', { trigger: 'click' });
+
+import { brightenFeedback } from 'brightpixels';
+const [feedback] = brightenFeedback('.button', { press: true });
+feedback?.flash('success').select(true).cancel();
+feedback?.destroy();
+// @ts-expect-error Unknown feedback signals must not be accepted.
+feedback?.flash('alarm');

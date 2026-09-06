@@ -522,3 +522,32 @@ corners. Host class/style changes and resizing refresh the edge automatically.
 This enhances an edge only; fills, arbitrary SVG strokes, and text decorations are
 not part of this helper. HDR still depends on the renderer and display, with an
 ordinary-color edge fallback when HDR is unavailable.
+
+### Interaction feedback (unreleased)
+
+[Try ten interaction examples](https://echohtp.github.io/brightpixels/interactions.html):
+press/release bloom, success, error, warning, selection, range feedback,
+hold-to-confirm, completion, field focus and notification.
+
+```js
+import { brightenFeedback } from './index.js';
+const [feedback] = brightenFeedback(button); // pointer + Enter/Space press light
+feedback.flash('success'); // call after your application action succeeds
+feedback.select(true); // quiet persistent edge; caller owns ARIA/application state
+feedback.cancel();
+feedback.destroy();
+```
+
+`flash` accepts `press`, `success`, `error`, `warning`, `complete`, or `notify`.
+Options are `color` (override preset colors), `thickness` (edge width) and `press`
+(default true; false for manually controlled responses). Repeated attachment returns
+the existing controller. The controller owns its edge; avoid combining it with a
+separate `brightenEdges` enhancement on the same target.
+
+The helper never clicks, submits, changes ARIA state, or performs an application
+action. Range, hold and upload logic in the demo illustrates wiring your own state
+to light; upload/save/error/notification actions are labeled simulations. Press
+light works with touch, mouse, and keyboard. Reduced motion skips animated blooms
+while preserving static press and selection feedback. Pulses stop offscreen or
+when the page is hidden. Removing the target destroys the controller and its edge;
+reattach feedback after reinserting the target. These helpers are not in 1.0.0 yet.

@@ -133,3 +133,19 @@ export declare function brightenEdges(targets: string | Element | Iterable<Eleme
 declare global {
   interface HTMLElementTagNameMap { 'bright-edge': BrightEdgeElement; }
 }
+
+export interface BrightFeedbackController {
+  readonly target: HTMLElement;
+  readonly edge: BrightEdgeElement;
+  flash(kind?: 'press' | 'success' | 'error' | 'warning' | 'complete' | 'notify'): this;
+  /** Visual selection only: the caller owns aria-pressed/checked and application state. */
+  select(value?: boolean): this;
+  cancel(): this;
+  destroy(): void;
+}
+/** Press/release illumination plus explicit outcome pulses; never invokes application actions. */
+export declare function brightenFeedback(targets: string | Element | Iterable<Element>, options?: {
+  color?: string;
+  thickness?: number;
+  press?: boolean;
+}): BrightFeedbackController[];

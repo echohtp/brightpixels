@@ -1536,6 +1536,7 @@ function makeEdgeElementClass() {
       this._target = null;
       this._hover = false;
       this._pressed = false;
+      this._feedbackCleanup?.();
     }
     attributeChangedCallback() { this.refresh(); }
     get target() { return this._target || null; }
@@ -1587,6 +1588,95 @@ export function brightenEdges(targets, options = {}) {
       } else edge.update(options);
       return edge;
     });
+}
+
+const feedbackEnhancements = new WeakMap();
+const FEEDBACK_COLORS = { press: '#8bc9ff', success: '#44efa5', error: '#ff6688', warning: '#ffd16c', complete: '#b4a0ff', notify: '#7cdeff' };
+
+/** Small light responses for existing controls. Application actions stay with the caller. */
+export function brightenFeedback(targets, options = {}) {
+  if (!hasDOM()) return [];
+  return Array.from(resolveElements(targets)).map((target) => {
+    const existing = feedbackEnhancements.get(target);
+    if (existing) return existing;
+    const [edge] = brightenEdges(target, { color: options.color || FEEDBACK_COLORS.press, intensity: 1, thickness: options.thickness ?? 2 });
+    if (!edge) return null;
+    const baseColor = options.color || FEEDBACK_COLORS.press;
+    let selected = false, frame = 0, pressed = false, pointerId = null, keyboardKey = null, disposed = false;
+    const listeners = [];
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    function listen(object, type, callback) {
+      object.addEventListener(type, callback); listeners.push(() => object.removeEventListener(type, callback));
+    }
+    function stop() { cancelFrame(frame); frame = 0; }
+    function idle() {
+      stop();
+      edge.style.visibility = selected ? 'visible' : 'hidden';
+      edge._shape.color = baseColor;
+      edge._shape.intensity = selected ? 2 : 1;
+    }
+    function animate(kind = 'notify', duration = 650, decay = false) {
+      if (disposed || !target.isConnected || document.hidden) return;
+      stop();
+      edge.style.visibility = 'visible';
+      edge._shape.color = options.color || FEEDBACK_COLORS[kind] || FEEDBACK_COLORS.notify;
+      if (reduced?.matches) { idle(); return; }
+      let start;
+      const tick = (now) => {
+        frame = 0;
+        if (disposed || !target.isConnected || document.hidden || edge._shape._nearViewport === false || reduced?.matches) { idle(); return; }
+        start ??= now;
+        const progress = Math.min(1, (now - start) / duration);
+        const light = decay ? (1 - progress) ** 2 : Math.sin(Math.PI * progress) ** 2;
+        edge._shape.intensity = 1 + 7 * light;
+        if (progress < 1) frame = scheduleFrame(tick);
+        else idle();
+      };
+      frame = scheduleFrame(tick);
+    }
+    const disabled = () => target.matches(':disabled') || target.getAttribute('aria-disabled') === 'true';
+    function down() {
+      if (disposed || disabled()) return;
+      stop(); pressed = true;
+      edge.style.visibility = 'visible'; edge._shape.color = baseColor; edge._shape.intensity = 8;
+    }
+    function release(cancelled = false) {
+      if (!pressed) return;
+      pressed = false; pointerId = null; keyboardKey = null;
+      if (cancelled) idle(); else animate('press', 450, true);
+    }
+    if (options.press !== false) {
+      listen(target, 'pointerdown', (event) => {
+        if (event.button !== 0 || pointerId !== null || disabled()) return;
+        pointerId = event.pointerId; down();
+      });
+      listen(window, 'pointerup', (event) => { if (event.pointerId === pointerId) release(); });
+      listen(window, 'pointercancel', (event) => { if (event.pointerId === pointerId) release(true); });
+      listen(target, 'keydown', (event) => {
+        if (!['Enter', ' '].includes(event.key) || event.repeat || event.target !== target || disabled()) return;
+        keyboardKey = event.key; down();
+      });
+      listen(target, 'keyup', (event) => { if (event.key === keyboardKey) release(); });
+    }
+    listen(target, 'blur', () => release(true));
+    listen(window, 'blur', () => { pressed = false; pointerId = null; keyboardKey = null; idle(); });
+    listen(document, 'visibilitychange', () => { if (document.hidden) { pressed = false; pointerId = null; keyboardKey = null; idle(); } });
+    if (reduced?.addEventListener) listen(reduced, 'change', idle);
+    const controller = {
+      target, edge,
+      flash(kind = 'notify') { pressed = false; pointerId = null; keyboardKey = null; animate(kind); return controller; },
+      select(value = true) { if (disposed) return controller; selected = Boolean(value); idle(); return controller; },
+      cancel() { pressed = false; pointerId = null; keyboardKey = null; idle(); return controller; },
+      destroy() {
+        if (disposed) return;
+        disposed = true; stop(); for (const remove of listeners) remove();
+        edge.destroy(); feedbackEnhancements.delete(target);
+      },
+    };
+    edge._feedbackCleanup = () => controller.destroy();
+    idle(); feedbackEnhancements.set(target, controller);
+    return controller;
+  }).filter(Boolean);
 }
 
 export function defineBrightpixels() {
