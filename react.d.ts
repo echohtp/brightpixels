@@ -51,6 +51,8 @@ declare module "react" {
           angle?: number | string;
           dash?: string;
           linecap?: "butt" | "round" | "square";
+          track?: string;
+          duration?: number | string;
         };
     }
   }

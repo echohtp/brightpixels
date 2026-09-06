@@ -260,7 +260,7 @@
       .playground-controls { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-content:start; }
       .playground-controls label { display:grid; gap:0.4rem; font-size:0.85rem; }
       .playground-controls input, .playground-controls select { min-width:0; width:100%; accent-color:#ff5900; }
-      .playground-controls select, .playground-controls input:not([type="range"]):not([type="checkbox"]):not([type="color"]), #play-pulse { border:1px solid #ffffff30; border-radius:0.5rem; padding:0.6rem; background:#15151a; color:#eee; font:inherit; }
+      .playground-controls select, .playground-controls input:not([type="range"]):not([type="checkbox"]):not([type="color"]), #play-pulse, #play-progress { border:1px solid #ffffff30; border-radius:0.5rem; padding:0.6rem; background:#15151a; color:#eee; font:inherit; }
       .playground-controls .check-control { display:flex; align-items:center; gap:0.5rem; }
       .check-control input { width:auto; }
       .wide-control { grid-column:1 / -1; }
@@ -500,7 +500,7 @@
         <div class="shape-demos">
           <figure>
             <bright-shape id="shape-ring" shape="ring" color="color(display-p3 1 0.35 0)"
-              value="65" intensity="4" thickness="6" aria-hidden="true"><span id="shape-percent">65%</span></bright-shape>
+              value="65" track duration="500" intensity="4" thickness="6" aria-hidden="true"><span id="shape-percent">65%</span></bright-shape>
             <figcaption>Progress ring</figcaption>
           </figure>
           <figure>
@@ -511,7 +511,7 @@
             <figcaption>Interactive content, bright outline</figcaption>
           </figure>
           <figure>
-            <bright-shape id="shape-progress" shape="bar" value="65" color="#26df8b" intensity="4"
+            <bright-shape id="shape-progress" shape="bar" value="65" track duration="500" color="#26df8b" intensity="4"
               role="progressbar" aria-label="Example progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"></bright-shape>
             <figcaption>Progress bar</figcaption>
           </figure>
@@ -553,7 +553,7 @@
         <h2 id="playground-heading">Make it your own.</h2>
         <p class="caption">Thirteen native primitives. Pick a shape, mix colors, and give it a single swell of light.</p>
         <div class="shape-gallery">
-          <figure><bright-shape shape="arc" start-angle="135" sweep="270" value="80" color="#ff5900" color-end="#ffca36" intensity="3" thickness="8" aria-hidden="true"></bright-shape><figcaption>Arc / gauge</figcaption></figure>
+          <figure><bright-shape shape="arc" start-angle="135" sweep="270" value="80" track color="#ff5900" color-end="#ffca36" intensity="3" thickness="8" aria-hidden="true"></bright-shape><figcaption>Arc / gauge</figcaption></figure>
           <figure><bright-shape shape="star" color="#ffca36" intensity="3" aria-hidden="true"></bright-shape><figcaption>Star</figcaption></figure>
           <figure><bright-shape shape="triangle" color="#26df8b" intensity="3" aria-hidden="true"></bright-shape><figcaption>Triangle</figcaption></figure>
           <figure><bright-shape shape="diamond" color="#68bfff" intensity="3" aria-hidden="true"></bright-shape><figcaption>Diamond</figcaption></figure>
@@ -565,10 +565,11 @@
         </div>
         <div class="playground-layout">
           <div class="playground-preview">
-            <bright-shape id="play-shape" shape="arc" start-angle="135" sweep="270" value="75"
+            <bright-shape id="play-shape" shape="arc" start-angle="135" sweep="270" value="75" track duration="500"
               color="#ff5900" color-end="#ffca36" thickness="6" intensity="3" aria-hidden="true"></bright-shape>
             <p id="play-status" class="caption" role="status">Try a single brightness pulse.</p>
             <button id="play-pulse" type="button">Pulse once</button>
+            <button id="play-progress" type="button">Try a progress jump</button>
           </div>
           <form class="playground-controls" id="play-controls">
             <label>Shape<select id="play-kind">
@@ -580,6 +581,8 @@
             <label>Color<input id="play-color" type="color" value="#ff5900" /></label>
             <label>End color<input id="play-end" type="color" value="#ffca36" /></label>
             <label class="check-control"><input id="play-gradient" type="checkbox" checked /> Gradient</label>
+            <label class="check-control"><input id="play-track" type="checkbox" checked /> Background track</label>
+            <label>Transition <output id="play-duration-output">500 ms</output><input id="play-duration" type="range" min="0" max="1500" step="50" value="500" /></label>
             <label class="check-control"><input id="play-dashed" type="checkbox" /> Dashed stroke</label>
             <label>Gradient angle<input id="play-angle" type="range" min="0" max="360" value="0" /></label>
             <label>Arc sweep<input id="play-sweep" type="range" min="0" max="360" value="270" /></label>
@@ -616,6 +619,8 @@
       const syncPlay = () => {
         play.stopPulse();
         play.shape = field("kind").value;
+        play.duration = field("duration").value;
+        play.track = field("track").checked ? "#25252b" : "";
         play.value = field("value").value;
         play.intensity = field("intensity").value;
         play.thickness = field("thickness").value;
@@ -631,10 +636,15 @@
         field("path-label").hidden = play.shape !== "path";
         field("sweep").disabled = play.shape !== "arc";
         field("value").disabled = !["ring", "arc", "bar"].includes(play.shape);
+        field("progress").disabled = !["ring", "arc", "bar"].includes(play.shape);
+        field("track").disabled = field("progress").disabled;
+        field("duration").disabled = field("progress").disabled;
+        field("duration-output").textContent = play.duration + " ms";
         field("value-output").textContent = play.value + "%";
         field("intensity-output").textContent = play.intensity + "×";
         const names = ["shape", "color", "intensity", "thickness"];
-        if (["ring", "arc", "bar"].includes(play.shape)) names.push("value");
+        if (["ring", "arc", "bar"].includes(play.shape)) names.push("value", "duration");
+        if (play.track && ["ring", "arc", "bar"].includes(play.shape)) names.push("track");
         if (play.shape === "arc") names.push("start-angle", "sweep");
         if (play.colorEnd) names.push("color-end", "angle");
         if (play.dash) names.push("dash", "linecap");
@@ -645,6 +655,11 @@
       };
       field("controls").addEventListener("input", syncPlay);
       field("controls").addEventListener("submit", (event) => event.preventDefault());
+      field("progress").addEventListener("click", () => {
+        field("value").value = play.value > 50 ? "20" : "85";
+        syncPlay();
+        field("status").textContent = "Progress target: " + play.value + "%";
+      });
       field("pulse").addEventListener("click", () => {
         play.pulse({ intensity: 12, duration: 1200 });
         field("status").textContent = window.matchMedia("(prefers-reduced-motion: reduce)").matches

@@ -205,6 +205,34 @@ keeps round caps inside the element. Empty or invalid points produce a horizonta
 line. Update `.points` to change a series. These are visual primitives, so provide
 labels or accompanying data for meaningful charts and status indicators.
 
+### Background tracks and smooth progress
+
+```html
+<bright-shape shape="ring" value="25" track="#25252b" duration="500"
+  color="#26df8b" intensity="4" role="progressbar" aria-label="Upload"
+  aria-valuemin="0" aria-valuemax="100" aria-valuenow="25"></bright-shape>
+```
+
+```js
+const progress = document.querySelector("bright-shape");
+progress.value = 80; // Glides from its current displayed value to 80%.
+progress.setAttribute("aria-valuenow", "80");
+```
+
+`track` adds a full background rail to rings, arcs, and bars. A bare `track`
+attribute uses dark gray; a CSS color customizes it. The track is rendered as
+ordinary SVG behind the HDR foreground, so intensity changes and pulses do not
+brighten it. Omit `track` or set `.track = ""` to disable it. Tracks are solid even
+when the foreground has dashes.
+
+`duration` enables smooth progress changes in milliseconds (0–5000; default 0).
+The initial value appears immediately. Later attribute or property updates ease
+from the currently displayed value, including when an update interrupts another.
+The `.value` property always reports the latest target. Reduced motion, hidden
+pages, and disconnected elements settle immediately without an animation loop.
+Changing shape or duration also settles the current transition. Pulse brightness
+and progress motion can run together.
+
 ### More primitives and paint options
 
 The [interactive playground](https://echohtp.github.io/brightpixels/#playground)

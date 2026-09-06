@@ -17,7 +17,7 @@ export interface BrightImageElement extends HTMLElement {
   readonly image: HTMLImageElement | null;
 }
 
-export declare const version: "0.2.0";
+export declare const version: "0.3.0";
 
 export interface BrightShapeElement extends HTMLElement {
   shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
@@ -46,6 +46,10 @@ export interface BrightShapeElement extends HTMLElement {
   /** SVG dash lengths in CSS pixels, separated by spaces or commas. */
   dash: string;
   linecap: "butt" | "round" | "square";
+  /** Background rail CSS color for rings/arcs/bars. Empty disables it. */
+  track: string;
+  /** Progress transition duration in milliseconds, 0–5000; default 0 (instant). */
+  duration: number;
   /** One brightness swell, returning to the base intensity; respects reduced motion. */
   pulse(options?: { intensity?: number; duration?: number }): void;
   stopPulse(): void;

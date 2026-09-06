@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A tiny dependency-free library for HDR text, image highlights, and native shapes.",
   "type": "module",
   "main": "./index.js",

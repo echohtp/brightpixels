@@ -1,4 +1,4 @@
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -974,7 +974,7 @@ function shapeNumber(element, name, fallback, min, max) {
 function makeShapeElementClass() {
   return class BrightShapeElement extends HTMLElement {
     static get observedAttributes() {
-      return ["shape", "color", "intensity", "value", "thickness", "radius", "points", "start-angle", "sweep", "d", "filled", "color-end", "angle", "dash", "linecap"];
+      return ["shape", "color", "intensity", "value", "thickness", "radius", "points", "start-angle", "sweep", "d", "filled", "color-end", "angle", "dash", "linecap", "track", "duration"];
     }
 
     constructor() {
@@ -993,18 +993,26 @@ function makeShapeElementClass() {
           bright-image { position:absolute; inset:0; width:100%; height:100%;
             pointer-events:none; dynamic-range-limit:no-limit; }
           img { display:block; width:100%; height:100%; }
+          .track { position:absolute; inset:0; pointer-events:none; }
+          .track[hidden] { display:none; }
           slot { position:relative; display:grid; place-items:center; min-width:0; }
           .color { position:absolute; visibility:hidden; pointer-events:none; }
         </style>
+        <img class="track" alt="" aria-hidden="true" hidden />
         <bright-image boost="all" aria-hidden="true"><img alt="" /></bright-image>
         <slot></slot><span class="color" aria-hidden="true"></span>`;
       this._bright = this.shadowRoot.querySelector("bright-image");
-      this._image = this.shadowRoot.querySelector("img");
+      this._image = this._bright.querySelector("img");
+      this._track = this.shadowRoot.querySelector(".track");
       this._probe = this.shadowRoot.querySelector(".color");
       this._frame = 0;
       this._pulseFrame = 0;
       this._pulsing = false;
-      this._onVisibility = () => { if (document.hidden) this.stopPulse(); };
+      this._displayValue = null;
+      this._transition = null;
+      this._onVisibility = () => {
+        if (document.hidden) { this.stopPulse(); this._finishTransition(); }
+      };
       this._resizeObserver = typeof ResizeObserver === "function"
         ? new ResizeObserver(() => this._requestRender()) : null;
       this._onResize = () => this._requestRender();
@@ -1018,6 +1026,7 @@ function makeShapeElementClass() {
     }
 
     connectedCallback() {
+      this._displayValue = this.value;
       document.addEventListener("visibilitychange", this._onVisibility);
       this._resizeObserver?.observe(this);
       if (!this._resizeObserver) window.addEventListener("resize", this._onResize);
@@ -1029,13 +1038,20 @@ function makeShapeElementClass() {
       window.removeEventListener("resize", this._onResize);
       document.removeEventListener("visibilitychange", this._onVisibility);
       this.stopPulse();
+      this._transition = null;
+      this._displayValue = this.value;
       cancelAnimationFrame(this._frame);
       this._frame = 0;
     }
 
-    attributeChangedCallback(name) {
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (oldValue === newValue) return;
       if (name === "intensity") this.stopPulse();
-      else this._requestRender();
+      else if (name === "value") this._transitionToValue();
+      else {
+        if (name === "shape" || name === "duration") this._finishTransition();
+        this._requestRender();
+      }
     }
 
     get shape() {
@@ -1069,16 +1085,57 @@ function makeShapeElementClass() {
     set dash(value) { this.setAttribute("dash", value); }
     get linecap() { return ["butt", "round", "square"].includes(this.getAttribute("linecap")) ? this.getAttribute("linecap") : "round"; }
     set linecap(value) { this.setAttribute("linecap", value); }
+    get track() { return this.hasAttribute("track") ? this.getAttribute("track") || "#25252b" : ""; }
+    set track(value) { if (value) this.setAttribute("track", value); else this.removeAttribute("track"); }
+    get duration() { return shapeNumber(this, "duration", 0, 0, 5000); }
+    set duration(value) { this.setAttribute("duration", value); }
     get points() { return this.getAttribute("points") || ""; }
     set points(value) { this.setAttribute("points", value); }
     get mode() { return this.dataset.brightpixelsMode || null; }
 
     _requestRender() {
       if (!this.isConnected || this._frame) return;
-      this._frame = requestAnimationFrame(() => {
+      this._frame = requestAnimationFrame((now) => {
         this._frame = 0;
+        this._advanceValue(now);
         this._render();
+        if (this._transition) this._requestRender();
       });
+    }
+
+    _finishTransition() {
+      this._transition = null;
+      this._displayValue = this.value;
+      this._requestRender();
+    }
+
+    _transitionToValue() {
+      const target = this.value;
+      if (!this.isConnected || this._displayValue === null || !this.duration ||
+          !["ring", "arc", "bar"].includes(this.shape) || document.hidden ||
+          window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        this._finishTransition();
+        return;
+      }
+      this._transition = this._displayValue === target ? null : {
+        from: this._displayValue, to: target, duration: this.duration, start: null,
+      };
+      this._requestRender();
+    }
+
+    _advanceValue(now) {
+      const transition = this._transition;
+      if (!transition) return;
+      if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        this._transition = null;
+        this._displayValue = this.value;
+        return;
+      }
+      transition.start ??= now;
+      const t = Math.min(1, Math.max(0, (now - transition.start) / transition.duration));
+      const eased = t * t * (3 - 2 * t);
+      this._displayValue = transition.from + (transition.to - transition.from) * eased;
+      if (t === 1) { this._displayValue = transition.to; this._transition = null; }
     }
 
     pulse({ intensity = 8, duration = 1000 } = {}) {
@@ -1107,7 +1164,7 @@ function makeShapeElementClass() {
       this._bright.intensity = this.intensity;
     }
 
-    _svg(width, height, color, endColor = "") {
+    _svg(width, height, color, endColor = "", value = this.value, isTrack = false) {
       const escape = (value) => value.replace(/[&<>"']/g, (c) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
       })[c]);
@@ -1122,11 +1179,11 @@ function makeShapeElementClass() {
         safeColor = "url(#paint)";
       }
       const dashValues = this.dash.trim().split(/[\s,]+/).map(Number);
-      const dash = this.dash.trim() && dashValues.every((n) => Number.isFinite(n) && n >= 0) && dashValues.some((n) => n > 0)
+      const dash = !isTrack && this.dash.trim() && dashValues.every((n) => Number.isFinite(n) && n >= 0) && dashValues.some((n) => n > 0)
         ? ` stroke-dasharray="${dashValues.join(" ")}"` : "";
       const stroke = Math.min(this.thickness, Math.min(width, height) / (this.shape === "line" ? 1 : 2));
       const inset = stroke / 2;
-      const fraction = this.value / 100;
+      const fraction = value / 100;
       let body;
       if (this.shape === "arc") {
         const radius = (Math.min(width, height) - stroke) / 2;
@@ -1191,7 +1248,16 @@ function makeShapeElementClass() {
         this._probe.style.color = this.colorEnd;
         endColor = getComputedStyle(this._probe).color;
       }
-      const svg = this._svg(width, height, color, endColor);
+      const showTrack = this.track && ["ring", "arc", "bar"].includes(this.shape);
+      this._track.hidden = !showTrack;
+      if (showTrack) {
+        this._probe.style.color = "#25252b";
+        this._probe.style.color = this.track;
+        const trackSvg = this._svg(width, height, getComputedStyle(this._probe).color, "", 100, true);
+        const trackSource = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trackSvg)}`;
+        if (this._track.getAttribute("src") !== trackSource) this._track.src = trackSource;
+      }
+      const svg = this._svg(width, height, color, endColor, this._displayValue ?? this.value);
       const source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       if (this._image.getAttribute("src") !== source) this._image.src = source;
     }
