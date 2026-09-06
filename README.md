@@ -435,3 +435,33 @@ See [CONTRIBUTING.md](https://github.com/echohtp/brightpixels/blob/main/CONTRIBU
 ## License
 
 [MIT](./LICENSE.txt)
+
+### Rendering performance and diagnostics
+
+```js
+import { configureBrightpixels, getBrightpixelsCapabilities } from "brightpixels";
+
+configureBrightpixels({ quality: "auto" }); // default
+console.log(getBrightpixelsCapabilities());
+console.log(document.querySelector("bright-text").fallbackReason);
+```
+
+`quality` accepts `auto`, `high`, or `low`. High uses device pixel ratio up to 2×;
+low uses up to 1×. Auto preserves that detail for small samples and caps larger
+canvases near one million pixels, with a minimum scale of 1×. Quality changes
+resize existing canvases; they do not change the requested HDR intensity.
+
+HDR setup is deferred until elements come within 200 CSS pixels of the viewport.
+Offscreen shape animations pause, pulses stop, and progress settles to its latest
+value. Existing GPU resources are retained for returning elements and released
+on disconnect or global disable. Without IntersectionObserver, rendering remains
+eager. Static samples do not run a continuous render loop.
+
+`getBrightpixelsCapabilities()` returns fresh boolean browser signals: `webgpu`,
+`hdr`, `p3`, `reducedMotion`, and `intersectionObserver`. It is safe to call during
+SSR and does not request a GPU. These signals do not prove physical HDR output.
+
+All elements expose `fallbackReason`: `disabled`, `offscreen`,
+`webgpu-unavailable`, `device-lost`, `missing-image`, or `renderer-error` (or `null`
+when no fallback reason is set). The `brightpixelsready` event includes `reason`
+and fires when the reason changes, even if the mode stays `fallback`.

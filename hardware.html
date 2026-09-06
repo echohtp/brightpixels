@@ -22,6 +22,7 @@
     <section class="controls" aria-label="Test controls">
       <label class="check"><input id="hdr-enabled" type="checkbox" checked /> Enable HDR</label>
       <label class="range-label" for="intensity">Requested signal <output id="intensity-label">4×</output><input id="intensity" type="range" min="1" max="16" step="1" value="4" /></label>
+      <label>Rendering quality <select id="quality"><option value="auto">Auto</option><option value="high">High (up to 2×)</option><option value="low">Low (up to 1×)</option></select></label>
       <button id="reset" type="button">Reset test controls</button>
       <p class="note">The multiplier is a signal request, not a measurement of screen brightness. Reference samples stay unchanged.</p>
     </section>

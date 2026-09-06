@@ -8,20 +8,35 @@ export interface BrightpixelsConfig {
   enabled: boolean;
   /** Scale extra HDR light, 0–1. Zero means reference white, not black. */
   brightness: number;
+  /** Auto caps large canvases near 1MP (minimum 1x); high uses up to 2x DPR; low uses up to 1x. */
+  quality: "auto" | "high" | "low";
 }
 export declare function configureBrightpixels(options?: Partial<BrightpixelsConfig>): BrightpixelsConfig;
 export declare function getBrightpixelsConfig(): BrightpixelsConfig;
+
+export type BrightpixelsFallbackReason = "disabled" | "offscreen" | "webgpu-unavailable" | "device-lost" | "missing-image" | "renderer-error";
+export interface BrightpixelsCapabilities {
+  webgpu: boolean;
+  hdr: boolean;
+  p3: boolean;
+  reducedMotion: boolean;
+  intersectionObserver: boolean;
+}
+/** A fresh snapshot of browser signals; does not measure display luminance or request a GPU. */
+export declare function getBrightpixelsCapabilities(): BrightpixelsCapabilities;
 
 export interface BrightTextElement extends HTMLElement {
   intensity: number;
   /** CSS color; defaults to white. Display P3 is supported where available. */
   color: string;
+  readonly fallbackReason: BrightpixelsFallbackReason | null;
   readonly mode: "hdr" | "fallback" | null;
 }
 
 export interface BrightImageElement extends HTMLElement {
   intensity: number;
   boost: "highlights" | "all";
+  readonly fallbackReason: BrightpixelsFallbackReason | null;
   readonly mode: "hdr" | "fallback" | null;
   readonly image: HTMLImageElement | null;
 }
@@ -66,6 +81,7 @@ export interface BrightShapeElement extends HTMLElement {
   /** One brightness swell, returning to the base intensity; respects reduced motion. */
   pulse(options?: { intensity?: number; duration?: number }): void;
   stopPulse(): void;
+  readonly fallbackReason: BrightpixelsFallbackReason | null;
   readonly mode: "hdr" | "fallback" | null;
 }
 

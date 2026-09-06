@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { configureBrightpixels, getBrightpixelsConfig } from '../index.js';
 test('global configuration clamps values and returns detached snapshots', () => {
-  assert.deepEqual(configureBrightpixels({ brightness: 9 }), { enabled: true, brightness: 1 });
+  assert.deepEqual(configureBrightpixels({ brightness: 9 }), { enabled: true, brightness: 1, quality: "auto" });
   configureBrightpixels({ enabled: false, brightness: -1 });
-  assert.deepEqual(getBrightpixelsConfig(), { enabled: false, brightness: 0 });
+  assert.deepEqual(getBrightpixelsConfig(), { enabled: false, brightness: 0, quality: "auto" });
   const snapshot = getBrightpixelsConfig(); snapshot.enabled = true;
   assert.equal(getBrightpixelsConfig().enabled, false);
   configureBrightpixels({ brightness: NaN });
   assert.equal(getBrightpixelsConfig().brightness, 0);
-  configureBrightpixels({ enabled: true, brightness: 1 });
+  configureBrightpixels({ enabled: true, brightness: 1, quality: "auto" });
 });
 test('scheduler batches components into one frame and cancels detached work', async () => {
   const source = readFileSync(new URL('../index.js', import.meta.url), 'utf8') + '\nexport {scheduleFrame,cancelFrame};';
@@ -37,4 +37,14 @@ test('scheduler batches components into one frame and cancels detached work', as
   } finally {
     for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }
   }
+});
+
+test('quality validates settings and capabilities are safe without a DOM', async () => {
+  const { getBrightpixelsCapabilities } = await import('../index.js');
+  configureBrightpixels({ quality: 'low' });
+  assert.equal(configureBrightpixels({ quality: 'invalid' }).quality, 'low');
+  assert.equal(configureBrightpixels({ quality: 'high' }).quality, 'high');
+  configureBrightpixels({ quality: 'auto' });
+  assert.equal(getBrightpixelsCapabilities().hdr, false);
+  assert.equal(getBrightpixelsCapabilities().p3, false);
 });

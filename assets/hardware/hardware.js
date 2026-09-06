@@ -1,4 +1,4 @@
-import { version, configureBrightpixels, getBrightpixelsConfig } from '../../index.js';
+import { version, configureBrightpixels, getBrightpixelsConfig, getBrightpixelsCapabilities } from '../../index.js';
 
 const $ = (id) => document.getElementById(id);
 const samples = [...document.querySelectorAll('.hdr-target')];
@@ -21,11 +21,11 @@ function collectReport() {
     screen: { width: screen.width, height: screen.height, availableWidth: screen.availWidth,
       availableHeight: screen.availHeight, colorDepth: screen.colorDepth, pixelDepth: screen.pixelDepth },
     window: { width: innerWidth, height: innerHeight, devicePixelRatio },
-    capabilities: { webgpuApi: Boolean(navigator.gpu), displayP3Css: CSS.supports('color', 'color(display-p3 1 0.35 0)'),
+    capabilities: { ...getBrightpixelsCapabilities(), webgpuApi: Boolean(navigator.gpu), displayP3Css: CSS.supports('color', 'color(display-p3 1 0.35 0)'),
       ...Object.fromEntries(Object.entries(queries).map(([key, query]) => [key, query.matches])) },
     settings: { ...getBrightpixelsConfig(), requestedIntensity: Number($('intensity').value),
       continuousLoading: $('loading').checked, progress },
-    components: samples.map((element) => ({ id: element.id, tag: element.localName, mode: element.mode || 'initializing' })),
+    components: samples.map((element) => ({ id: element.id, tag: element.localName, mode: element.mode || 'initializing', fallbackReason: element.fallbackReason })),
     observations: Object.fromEntries(new FormData($('observations'))),
   };
 }
@@ -70,6 +70,9 @@ function stopMotion() {
   refresh();
 }
 
+$('quality').addEventListener('change', () => {
+  configureBrightpixels({ quality: $('quality').value }); refresh();
+});
 $('hdr-enabled').addEventListener('change', () => {
   configureBrightpixels({ enabled: $('hdr-enabled').checked }); refresh();
 });
@@ -90,7 +93,8 @@ $('pulse').addEventListener('click', () => { ring.pulse(); refresh(); });
 $('stop').addEventListener('click', stopMotion);
 $('reset').addEventListener('click', () => {
   progress = 65; stopMotion();
-  configureBrightpixels({ enabled: true, brightness: 1 });
+  configureBrightpixels({ enabled: true, brightness: 1, quality: 'auto' });
+  $('quality').value = 'auto';
   $('hdr-enabled').checked = true; $('intensity').value = '4';
   $('intensity').dispatchEvent(new Event('input'));
   $('progress-label').textContent = '65%'; refresh();

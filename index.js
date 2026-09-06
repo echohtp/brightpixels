@@ -30,7 +30,7 @@ function flushFrames(now) {
   }
 }
 
-const configuration = { enabled: true, brightness: 1 };
+const configuration = { enabled: true, brightness: 1, quality: "auto" };
 const connectedRenderers = new Set();
 export function getBrightpixelsConfig() { return { ...configuration }; }
 export function configureBrightpixels(options = {}) {
@@ -39,10 +39,47 @@ export function configureBrightpixels(options = {}) {
     const value = Number(options.brightness);
     if (Number.isFinite(value)) configuration.brightness = Math.min(1, Math.max(0, value));
   }
+  if (["auto", "high", "low"].includes(options.quality)) configuration.quality = options.quality;
   for (const element of connectedRenderers) element._applyConfig();
   return getBrightpixelsConfig();
 }
 function effectiveIntensity(value) { return 1 + (value - 1) * configuration.brightness; }
+
+
+/** Browser signals only. Does not request a GPU or measure physical HDR output. */
+export function getBrightpixelsCapabilities() {
+  const media = (query) => hasDOM() ? Boolean(window.matchMedia?.(query).matches) : false;
+  return {
+    webgpu: typeof navigator !== "undefined" && Boolean(navigator.gpu),
+    hdr: media("(dynamic-range: high)"),
+    p3: media("(color-gamut: p3)"),
+    reducedMotion: media("(prefers-reduced-motion: reduce)"),
+    intersectionObserver: typeof IntersectionObserver === "function",
+  };
+}
+function renderScale(width, height) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (configuration.quality === "low") return Math.min(dpr, 1);
+  if (configuration.quality === "high") return dpr;
+  // Auto limits large canvases to roughly one million pixels, never below 1x.
+  return Math.min(dpr, Math.max(1, Math.sqrt(1_000_000 / Math.max(1, width * height))));
+}
+let viewportObserver;
+function observeViewport(element) {
+  element._nearViewport = typeof IntersectionObserver !== "function";
+  if (!element._nearViewport) {
+    viewportObserver ||= new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const target = entry.target;
+        if (!target.isConnected) continue;
+        target._nearViewport = entry.isIntersecting;
+        target._viewportChanged();
+      }
+    }, { rootMargin: "200px" });
+    viewportObserver.observe(element);
+  }
+}
+function unobserveViewport(element) { viewportObserver?.unobserve(element); }
 
 
 let devicePromise;
@@ -395,7 +432,8 @@ function makeTextElementClass() {
 
     connectedCallback() {
       connectedRenderers.add(this);
-      if (!configuration.enabled) this._setMode("fallback");
+      observeViewport(this);
+      if (!configuration.enabled) this._setMode("fallback", "disabled");
       this._syncText();
       if (this._resizeObserver) this._resizeObserver.observe(this._frame);
       else window.addEventListener("resize", this._onWindowResize);
@@ -408,7 +446,7 @@ function makeTextElementClass() {
       Promise.resolve(document.fonts?.ready)
         .catch(() => undefined)
         .then(() => {
-          if (!this.isConnected || !configuration.enabled) return;
+          if (!this.isConnected || !configuration.enabled || this._nearViewport === false) return;
           this._syncText();
           this._resize();
           return this._initHDR();
@@ -420,6 +458,7 @@ function makeTextElementClass() {
       this._textObserver?.disconnect();
       window.removeEventListener("resize", this._onWindowResize);
       connectedRenderers.delete(this);
+      unobserveViewport(this);
       cancelFrame(this._animationFrame);
       this._animationFrame = 0;
       releaseGPU(this._gpu);
@@ -483,7 +522,7 @@ function makeTextElementClass() {
     _resize() {
       const rect = this._frame.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const ratio = renderScale(rect.width, rect.height);
       const width = Math.max(1, Math.round(rect.width * ratio));
       const height = Math.max(1, Math.round(rect.height * ratio));
       if (this._canvas.width !== width || this._canvas.height !== height) {
@@ -495,7 +534,7 @@ function makeTextElementClass() {
     }
 
     _requestRender() {
-      if (!this._gpu || this._animationFrame) return;
+      if (this._nearViewport === false || !this._gpu || this._animationFrame) return;
       this._animationFrame = scheduleFrame(() => this._render());
     }
 
@@ -561,7 +600,7 @@ function makeTextElementClass() {
 
     _render() {
       this._animationFrame = 0;
-      if (!this.isConnected || !this._gpu) return;
+      if (!this.isConnected || this._nearViewport === false || !this._gpu) return;
 
       try {
         if (this._maskDirty) this._drawMask();
@@ -593,21 +632,30 @@ function makeTextElementClass() {
       }
     }
 
+    _viewportChanged() {
+      if (this._nearViewport) { this._resize(); this._initHDR(); }
+      else { cancelFrame(this._animationFrame); this._animationFrame = 0; }
+    }
+
     _applyConfig() {
       if (!configuration.enabled) {
         cancelFrame(this._animationFrame);
         this._animationFrame = 0;
         releaseGPU(this._gpu);
         this._gpu = null;
-        this._setMode("fallback");
+        this._setMode("fallback", "disabled");
       } else {
-        this._requestRender();
+        this._resize();
         this._initHDR();
       }
     }
 
     _initHDR() {
-      if (!configuration.enabled) { this._setMode("fallback"); return Promise.resolve(); }
+      if (!configuration.enabled) { this._setMode("fallback", "disabled"); return Promise.resolve(); }
+      if (this._nearViewport === false) {
+        if (!this._gpu) this._setMode("fallback", "offscreen");
+        return Promise.resolve();
+      }
       if (this._gpu || this._initializing) return this._initializing;
       this._initializing = this._createHDR().finally(() => {
         this._initializing = null;
@@ -617,14 +665,14 @@ function makeTextElementClass() {
 
     async _createHDR() {
       if (!navigator.gpu || !this._canvas) {
-        this._setMode("fallback");
+        this._setMode("fallback", "webgpu-unavailable");
         return;
       }
 
       let context;
       try {
         const device = await getDevice();
-        if (!this.isConnected || !configuration.enabled) return;
+        if (!this.isConnected || !configuration.enabled || this._nearViewport === false) return;
         context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
@@ -637,7 +685,7 @@ function makeTextElementClass() {
         });
 
         const pipeline = await getPipeline(device, "text");
-        if (!this.isConnected || !configuration.enabled) {
+        if (!this.isConnected || !configuration.enabled || this._nearViewport === false) {
           context.unconfigure?.();
           return;
         }
@@ -664,7 +712,7 @@ function makeTextElementClass() {
         device.lost.then(() => {
           if (this._gpu?.device !== device) return;
           this._gpu = null;
-          if (this.isConnected) this._setMode("fallback");
+          if (this.isConnected) this._setMode("fallback", "device-lost");
         });
         this._maskDirty = true;
         this._resize();
@@ -678,12 +726,16 @@ function makeTextElementClass() {
       }
     }
 
-    _setMode(mode) {
-      if (this.dataset.brightpixelsMode === mode) return;
+    get fallbackReason() { return this.dataset.brightpixelsReason || null; }
+
+    _setMode(mode, reason = mode === "fallback" ? "renderer-error" : null) {
+      if (this.dataset.brightpixelsMode === mode && this.fallbackReason === reason) return;
       this.dataset.brightpixelsMode = mode;
+      if (reason) this.dataset.brightpixelsReason = reason;
+      else delete this.dataset.brightpixelsReason;
       this.dispatchEvent(new CustomEvent("brightpixelsready", {
         bubbles: true,
-        detail: { kind: "text", mode, version: VERSION },
+        detail: { kind: "text", mode, reason, version: VERSION },
       }));
     }
   };
@@ -777,6 +829,7 @@ function makeImageElementClass() {
 
     connectedCallback() {
       connectedRenderers.add(this);
+      observeViewport(this);
       this._syncImage();
       if (this._resizeObserver) this._resizeObserver.observe(this);
       else window.addEventListener("resize", this._onWindowResize);
@@ -796,6 +849,7 @@ function makeImageElementClass() {
       window.removeEventListener("resize", this._onWindowResize);
       this._image?.removeEventListener("load", this._onImageLoad);
       connectedRenderers.delete(this);
+      unobserveViewport(this);
       cancelFrame(this._animationFrame);
       this._animationFrame = 0;
       releaseGPU(this._gpu);
@@ -842,7 +896,7 @@ function makeImageElementClass() {
       }
 
       if (!this._image) {
-        this._setMode("fallback");
+        this._setMode("fallback", "missing-image");
         return;
       }
 
@@ -859,7 +913,7 @@ function makeImageElementClass() {
       if (this._image) {
         this._canvas.style.borderRadius = getComputedStyle(this._image).borderRadius;
       }
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const ratio = renderScale(rect.width, rect.height);
       const width = Math.max(1, Math.round(rect.width * ratio));
       const height = Math.max(1, Math.round(rect.height * ratio));
       if (this._canvas.width !== width || this._canvas.height !== height) {
@@ -871,7 +925,7 @@ function makeImageElementClass() {
     }
 
     _requestRender() {
-      if (!this._gpu || !this._image || this._animationFrame) return;
+      if (this._nearViewport === false || !this._gpu || !this._image || this._animationFrame) return;
       this._animationFrame = scheduleFrame(() => this._render());
     }
 
@@ -924,7 +978,7 @@ function makeImageElementClass() {
 
     _render() {
       this._animationFrame = 0;
-      if (!this.isConnected || !this._gpu) return;
+      if (!this.isConnected || this._nearViewport === false || !this._gpu) return;
 
       try {
         if (this._sourceDirty && !this._drawSource()) return;
@@ -956,21 +1010,30 @@ function makeImageElementClass() {
       }
     }
 
+    _viewportChanged() {
+      if (this._nearViewport) { this._resize(); this._initHDR(); }
+      else { cancelFrame(this._animationFrame); this._animationFrame = 0; }
+    }
+
     _applyConfig() {
       if (!configuration.enabled) {
         cancelFrame(this._animationFrame);
         this._animationFrame = 0;
         releaseGPU(this._gpu);
         this._gpu = null;
-        this._setMode("fallback");
+        this._setMode("fallback", "disabled");
       } else {
-        this._requestRender();
+        this._resize();
         this._initHDR();
       }
     }
 
     _initHDR() {
-      if (!configuration.enabled) { this._setMode("fallback"); return Promise.resolve(); }
+      if (!configuration.enabled) { this._setMode("fallback", "disabled"); return Promise.resolve(); }
+      if (this._nearViewport === false) {
+        if (!this._gpu) this._setMode("fallback", "offscreen");
+        return Promise.resolve();
+      }
       if (this._gpu || this._initializing) return this._initializing;
       this._initializing = this._createHDR().finally(() => {
         this._initializing = null;
@@ -980,14 +1043,14 @@ function makeImageElementClass() {
 
     async _createHDR() {
       if (!navigator.gpu || !this._canvas) {
-        this._setMode("fallback");
+        this._setMode("fallback", "webgpu-unavailable");
         return;
       }
 
       let context;
       try {
         const device = await getDevice();
-        if (!this.isConnected || !configuration.enabled) return;
+        if (!this.isConnected || !configuration.enabled || this._nearViewport === false) return;
         context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
@@ -1000,7 +1063,7 @@ function makeImageElementClass() {
         });
 
         const pipeline = await getPipeline(device, "image");
-        if (!this.isConnected || !configuration.enabled) {
+        if (!this.isConnected || !configuration.enabled || this._nearViewport === false) {
           context.unconfigure?.();
           return;
         }
@@ -1027,7 +1090,7 @@ function makeImageElementClass() {
         device.lost.then(() => {
           if (this._gpu?.device !== device) return;
           this._gpu = null;
-          if (this.isConnected) this._setMode("fallback");
+          if (this.isConnected) this._setMode("fallback", "device-lost");
         });
         this._sourceDirty = true;
         this._resize();
@@ -1041,12 +1104,16 @@ function makeImageElementClass() {
       }
     }
 
-    _setMode(mode) {
-      if (this.dataset.brightpixelsMode === mode) return;
+    get fallbackReason() { return this.dataset.brightpixelsReason || null; }
+
+    _setMode(mode, reason = mode === "fallback" ? "renderer-error" : null) {
+      if (this.dataset.brightpixelsMode === mode && this.fallbackReason === reason) return;
       this.dataset.brightpixelsMode = mode;
+      if (reason) this.dataset.brightpixelsReason = reason;
+      else delete this.dataset.brightpixelsReason;
       this.dispatchEvent(new CustomEvent("brightpixelsready", {
         bubbles: true,
-        detail: { kind: "image", mode, version: VERSION },
+        detail: { kind: "image", mode, reason, version: VERSION },
       }));
     }
   };
@@ -1119,12 +1186,13 @@ function makeShapeElementClass() {
       this._onResize = () => this._requestRender();
       this._bright.addEventListener("brightpixelsready", (event) => {
         event.stopPropagation();
-        this._setMode(event.detail.mode);
+        this._setMode(event.detail.mode, event.detail.reason);
       });
     }
 
     connectedCallback() {
-      if (this._bright.mode) this._setMode(this._bright.mode);
+      observeViewport(this);
+      if (this._bright.mode) this._setMode(this._bright.mode, this._bright.fallbackReason);
       this._displayValue = this.value;
       this._syncLoading();
       document.addEventListener("visibilitychange", this._onVisibility);
@@ -1137,6 +1205,7 @@ function makeShapeElementClass() {
       this._resizeObserver?.disconnect();
       window.removeEventListener("resize", this._onResize);
       document.removeEventListener("visibilitychange", this._onVisibility);
+      unobserveViewport(this);
       this.stopPulse();
       this._transition = null;
       this._displayValue = this.value;
@@ -1195,11 +1264,16 @@ function makeShapeElementClass() {
       this.status = status;
       if (pulse && this.status && this.status !== "loading") this.pulse();
     }
+    _viewportChanged() {
+      this._syncLoading();
+      if (!this._nearViewport) { this.stopPulse(); this._finishTransition(); }
+      else this._requestRender();
+    }
     _syncLoading() {
       const loading = this.indeterminate && ["ring", "arc", "bar"].includes(this.shape);
       if (loading) this.dataset.loading = this.shape === "bar" ? "bar" : "ring";
       else delete this.dataset.loading;
-      if (document.hidden) this.dataset.paused = "";
+      if (document.hidden || this._nearViewport === false) this.dataset.paused = "";
       else delete this.dataset.paused;
     }
     get track() { return this.hasAttribute("track") ? this.getAttribute("track") || "#25252b" : ""; }
@@ -1210,16 +1284,20 @@ function makeShapeElementClass() {
     set points(value) { this.setAttribute("points", value); }
     get mode() { return this.dataset.brightpixelsMode || null; }
 
-    _setMode(mode) {
-      if (this.dataset.brightpixelsMode === mode) return;
+    get fallbackReason() { return this.dataset.brightpixelsReason || null; }
+
+    _setMode(mode, reason = mode === "fallback" ? "renderer-error" : null) {
+      if (this.dataset.brightpixelsMode === mode && this.fallbackReason === reason) return;
       this.dataset.brightpixelsMode = mode;
+      if (reason) this.dataset.brightpixelsReason = reason;
+      else delete this.dataset.brightpixelsReason;
       this.dispatchEvent(new CustomEvent("brightpixelsready", {
-        bubbles: true, detail: { kind: "shape", mode, version: VERSION },
+        bubbles: true, detail: { kind: "shape", mode, reason, version: VERSION },
       }));
     }
 
     _requestRender() {
-      if (!this.isConnected || this._frame) return;
+      if (!this.isConnected || this._nearViewport === false || this._frame) return;
       this._frame = scheduleFrame((now) => {
         this._frame = 0;
         this._advanceValue(now);
@@ -1237,7 +1315,7 @@ function makeShapeElementClass() {
     _transitionToValue() {
       const target = this.value;
       if (!this.isConnected || this.indeterminate || this._displayValue === null || !this.duration ||
-          !["ring", "arc", "bar"].includes(this.shape) || document.hidden ||
+          !["ring", "arc", "bar"].includes(this.shape) || this._nearViewport === false || document.hidden ||
           window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         this._finishTransition();
         return;
@@ -1251,7 +1329,7 @@ function makeShapeElementClass() {
     _advanceValue(now) {
       const transition = this._transition;
       if (!transition) return;
-      if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      if (!this.isConnected || this._nearViewport === false || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         this._transition = null;
         this._displayValue = this.value;
         return;
@@ -1265,14 +1343,14 @@ function makeShapeElementClass() {
 
     pulse({ intensity = 8, duration = 1000 } = {}) {
       this.stopPulse();
-      if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      if (!this.isConnected || this._nearViewport === false || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
       const peak = Math.max(this.intensity, normalizeIntensity(intensity, 8));
       const milliseconds = Number.isFinite(Number(duration)) ? Math.min(5000, Math.max(250, Number(duration))) : 1000;
       const base = this.intensity;
       let start;
       this._pulsing = true;
       const tick = (now) => {
-        if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { this.stopPulse(); return; }
+        if (!this.isConnected || this._nearViewport === false || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { this.stopPulse(); return; }
         start ??= now;
         const t = Math.min(1, (now - start) / milliseconds);
         this._bright.intensity = base + (peak - base) * Math.sin(Math.PI * t) ** 2;
