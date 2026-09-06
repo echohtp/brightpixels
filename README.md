@@ -4,18 +4,24 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 
 [Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 0.5
+## What's new in 1.0
 
-- Indeterminate rings and bars, plus loading, success, warning, and error presets.
-- Page-wide HDR enable/disable and extra-brightness control.
-- One shared JavaScript animation scheduler and reusable GPU textures.
-- Chromium/WebKit browser checks and React 19 / TypeScript examples in CI.
+- Stable public API for HDR text, images, shapes, progress and status indicators.
+- Viewport-aware rendering and auto/high/low quality controls.
+- Capability snapshots, fallback reasons and copyable hardware diagnostics.
+- Chromium/WebKit browser checks and React / TypeScript integration checks.
 
-[Try the state demo](https://echohtp.github.io/brightpixels/#states).
+[Try the hardware demo](https://echohtp.github.io/brightpixels/hardware.html).
 
 ## Installation
 
-Install the published npm package:
+Install version 1.0.0 from the GitHub release tarball while registry publication is deferred:
+
+```bash
+npm install https://github.com/echohtp/brightpixels/releases/download/v1.0.0/brightpixels-1.0.0.tgz
+```
+
+The following installs the currently published registry version, which may be older:
 
 ```bash
 npm install brightpixels
@@ -465,3 +471,15 @@ All elements expose `fallbackReason`: `disabled`, `offscreen`,
 `webgpu-unavailable`, `device-lost`, `missing-image`, or `renderer-error` (or `null`
 when no fallback reason is set). The `brightpixelsready` event includes `reason`
 and fires when the reason changes, even if the mode stays `fallback`.
+
+
+### Version 1.0 compatibility
+
+The documented custom elements, configuration functions, capability snapshot and
+TypeScript/React entry points form the 1.x public API. Breaking public API changes
+require a major version. Underscore-prefixed members are internal; browser capability
+signals and physical HDR output remain device-dependent.
+
+See [release notes](https://github.com/echohtp/brightpixels/blob/main/CHANGELOG.md) and [hardware validation status](https://github.com/echohtp/brightpixels/blob/main/HARDWARE_VALIDATION.md)
+for tested behavior and open limitations. Slight page stutter has also been reported
+with HDR disabled; it has not yet been isolated or confirmed fixed.

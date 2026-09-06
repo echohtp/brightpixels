@@ -1,8 +1,15 @@
-# 1.0 validation gate
+# 1.0 hardware validation status
 
-The performance and diagnostic APIs are implemented. The version remains 0.5.0
-until the remaining real-device checks are recorded; this file is not a claim
-that those checks passed. npm publication remains deferred.
+Version 1.0.0 ships the documented rendering and diagnostic APIs. The real-device
+checks below remain unverified; a stable API version does not establish display
+compatibility. npm publication remains separately deferred.
+
+## Known issue
+
+The user reports slight stuttering while moving through the hardware page, including
+with HDR disabled. The cause has not been isolated and the issue is not claimed
+fixed. Record browser, display, and whether the trigger is scrolling or dragging
+the window before attributing it to the HDR renderer.
 
 ## Record on actual hardware
 
@@ -25,6 +32,5 @@ React/TypeScript integration and software WebGPU. It cannot establish physical
 luminance or smooth scrolling on a user's GPU. Use the run for the exact candidate
 commit; do not substitute software GPU success for an observation above.
 
-Before 1.0: resolve reproducible failures, review the documented API contract,
-record tested combinations and known limitations, synchronize version metadata,
-and complete the separately deferred package release.
+For follow-up patches, record tested combinations and known limitations here.
+The GitHub release documents the exact automated checks for its candidate commit.

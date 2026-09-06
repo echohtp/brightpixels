@@ -41,7 +41,7 @@ export interface BrightImageElement extends HTMLElement {
   readonly image: HTMLImageElement | null;
 }
 
-export declare const version: "0.5.0";
+export declare const version: "1.0.0";
 
 export interface BrightShapeElement extends HTMLElement {
   shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
