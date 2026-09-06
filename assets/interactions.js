@@ -81,3 +81,6 @@ $('upload').addEventListener('click', () => {
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelHold(); cancelUpload(); } });
 window.addEventListener('pagehide', () => { cancelHold(); cancelUpload(); });
+
+import { glowCards } from './card-glow.js';
+glowCards('.feedback-card');

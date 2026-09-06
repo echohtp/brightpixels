@@ -1,0 +1,4 @@
+.demo-card-glow{position:relative;--card-glow-x:50%;--card-glow-y:50%}
+.demo-card-glow::before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;opacity:0;background:radial-gradient(circle at var(--card-glow-x) var(--card-glow-y),rgba(var(--card-glow-rgb),.16),transparent 65%);box-shadow:0 0 45px rgba(var(--card-glow-rgb),.25),inset 0 0 36px rgba(var(--card-glow-rgb),.08);transition:opacity .65s ease}
+.demo-card-glow[data-glowing]::before{opacity:1;transition-duration:.08s}
+@media(prefers-reduced-motion:reduce){.demo-card-glow::before{transition:none}}

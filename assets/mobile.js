@@ -67,3 +67,6 @@ for (const button of document.querySelectorAll('[data-action]')) {
 window.addEventListener('blur', cancelHold);
 window.addEventListener('pagehide', cancelHold);
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelHold(); });
+
+import { glowCards } from './card-glow.js';
+glowCards('.touch-card');

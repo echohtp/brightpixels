@@ -93,3 +93,17 @@ test('feedback uses real GPU and supports global HDR off', async ({ page }, info
   await page.locator('#hdr').uncheck();
   await expect.poll(() => page.locator('#bloom bright-edge').evaluate((el) => el.fallbackReason)).toBe('disabled');
 });
+
+test('button press lights its card and button together and aura fades', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
+  await page.goto('/interactions.html');
+  const card = page.locator('.feedback-card').first();
+  await page.locator('#bloom').hover(); await page.mouse.down();
+  await expect(card).toHaveAttribute('data-glowing');
+  expect(await card.evaluate((el) => el.querySelector(':scope > bright-edge')._shape.intensity)).toBe(8);
+  expect(await page.locator('#bloom bright-edge').evaluate((el) => el._shape.intensity)).toBe(8);
+  await page.mouse.up();
+  await expect(card).not.toHaveAttribute('data-glowing');
+  await page.locator('#save').click();
+  await expect(page.locator('#save').locator('..')).toHaveAttribute('data-glowing');
+});

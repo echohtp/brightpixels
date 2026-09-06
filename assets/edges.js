@@ -23,3 +23,7 @@ document.querySelector('#enable-hdr').addEventListener('change', (event) => conf
 document.querySelector('#show-all-edges').addEventListener('change', () => {
   if (document.querySelector('#enable-edges').checked) enable();
 });
+
+import { glowCards } from './card-glow.js';
+const cardGlow = glowCards('#edge-action-card');
+document.querySelector('#enable-edges').addEventListener('change', (event) => cardGlow.setEnabled(event.target.checked));
