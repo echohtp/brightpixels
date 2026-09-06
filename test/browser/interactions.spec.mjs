@@ -100,10 +100,13 @@ test('button press lights its card and button together and aura fades', async ({
   const card = page.locator('.feedback-card').first();
   await page.locator('#bloom').hover(); await page.mouse.down();
   await expect(card).toHaveAttribute('data-glowing');
+  await expect(card.locator(':scope > .demo-neon-frame')).toBeVisible();
+  await expect(card.locator(':scope > .demo-neon-frame')).toHaveAttribute('intensity', '16');
   expect(await card.evaluate((el) => el.querySelector(':scope > bright-edge')._shape.intensity)).toBe(8);
   expect(await page.locator('#bloom bright-edge').evaluate((el) => el._shape.intensity)).toBe(8);
   await page.mouse.up();
   await expect(card).not.toHaveAttribute('data-glowing');
+  await expect(card.locator(':scope > .demo-neon-frame')).toBeHidden();
   await page.locator('#save').click();
   await expect(page.locator('#save').locator('..')).toHaveAttribute('data-glowing');
 });
