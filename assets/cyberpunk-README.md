@@ -21,6 +21,6 @@ The runtime includes repository features newer than the tagged 1.0.0 package.
 Runtime license: LICENSE.txt.
 
 Controls are local demos: callsigns are not saved or sent, transfers are simulated,
-and palette/favorite settings reset on reload. No fonts or scripts are fetched from
-third parties. HDR depends on browser, display and OS configuration; ordinary CSS
+and palette/favorite settings reset on reload. The Anton display font is bundled locally under the SIL Open Font License
+(assets/fonts/Anton-OFL.txt); no fonts or scripts are fetched from third parties at runtime. HDR depends on browser, display and OS configuration; ordinary CSS
 colors and original component content remain available as fallbacks.
