@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#09090b" />
+  <title>BrightPixels — hardware test</title>
+  <meta name="description" content="Compare reference white, Display P3, and HDR on your display and export a hardware test report." />
+  <link rel="stylesheet" href="./assets/hardware/hardware.css" />
+  <script type="module" src="./assets/hardware/hardware.js"></script>
+</head>
+<body>
+  <header class="shell"><a class="brand" href="./">BrightPixels</a><nav aria-label="Hardware test"><a href="#compare">Compare</a><a href="#motion">Motion</a><a href="#report">Report</a></nav></header>
+  <main class="shell">
+    <section class="intro">
+      <p class="eyebrow">Display lab · <span id="version">loading</span></p>
+      <h1>See what your<br />screen can do.</h1>
+      <p class="lead">Compare ordinary white, wide-gamut color, and HDR on the display you actually use.</p>
+      <ol class="instructions"><li>Move this window onto the display you want to test.</li><li>Compare the samples with HDR on and off.</li><li>Record what you see and copy the report.</li></ol>
+      <p class="note">The browser can report capabilities and renderer state. It cannot measure physical brightness or identify your monitor. A screenshot does not prove HDR output.</p>
+    </section>
+    <section class="controls" aria-label="Test controls">
+      <label class="check"><input id="hdr-enabled" type="checkbox" checked /> Enable HDR</label>
+      <label class="range-label" for="intensity">Requested signal <output id="intensity-label">4×</output><input id="intensity" type="range" min="1" max="16" step="1" value="4" /></label>
+      <button id="reset" type="button">Reset test controls</button>
+      <p class="note">The multiplier is a signal request, not a measurement of screen brightness. Reference samples stay unchanged.</p>
+    </section>
+    <section id="compare" aria-labelledby="compare-heading">
+      <p class="eyebrow">01 / Light</p><h2 id="compare-heading">Brighter than reference white?</h2>
+      <div class="samples two">
+        <figure><div class="stage"><div class="white-square" aria-hidden="true"></div></div><figcaption><strong>Reference white</strong><span>Ordinary CSS white</span></figcaption></figure>
+        <figure><div class="stage"><bright-shape id="white-hdr" class="hdr-target square" shape="rect" radius="0" color="white" intensity="4" aria-hidden="true"></bright-shape></div><figcaption><strong>HDR white</strong><span id="white-mode">Renderer initializing…</span></figcaption></figure>
+      </div>
+      <div class="samples two text-samples">
+        <figure><div class="stage"><span class="reference-text">Bright</span></div><figcaption>Reference text</figcaption></figure>
+        <figure><div class="stage"><bright-text id="text-hdr" class="hdr-target" intensity="4">Bright</bright-text></div><figcaption>HDR text</figcaption></figure>
+      </div>
+    </section>
+    <section aria-labelledby="color-heading">
+      <p class="eyebrow">02 / Color</p><h2 id="color-heading">A wider palette. Extra light.</h2>
+      <div class="samples three">
+        <figure><div class="stage"><div class="orange-srgb" aria-hidden="true"></div></div><figcaption><strong>sRGB orange</strong><span>Standard gamut, ordinary brightness</span></figcaption></figure>
+        <figure><div class="stage"><div class="orange-p3" aria-hidden="true"></div></div><figcaption><strong>Display P3 orange</strong><span>Wide gamut, ordinary brightness</span></figcaption></figure>
+        <figure><div class="stage"><bright-shape id="orange-hdr" class="hdr-target square" shape="rect" radius="0" color="color(display-p3 1 0.35 0)" intensity="4" aria-hidden="true"></bright-shape></div><figcaption><strong>Display P3 + HDR</strong><span>Wide gamut with extra light</span></figcaption></figure>
+      </div>
+      <p class="note">Compare the first two for color, and the last two for brightness. Unsupported displays or browsers may map them to similar colors.</p>
+    </section>
+    <section aria-labelledby="image-heading">
+      <p class="eyebrow">03 / Highlights</p><h2 id="image-heading">The same image, two outputs.</h2>
+      <div class="samples two image-samples">
+        <figure><img src="./assets/examples/chrome.png" alt="Polished metal ring with studio reflections" width="1536" height="1024" /><figcaption>Original image</figcaption></figure>
+        <figure><bright-image id="image-hdr" class="hdr-target" intensity="4"><img src="./assets/examples/chrome.png" alt="The same metal ring with HDR highlights" width="1536" height="1024" /></bright-image><figcaption>BrightPixels highlights</figcaption></figure>
+      </div>
+    </section>
+    <section id="motion" aria-labelledby="motion-heading">
+      <p class="eyebrow">04 / Motion</p><h2 id="motion-heading">Steady, moving, or one pulse.</h2>
+      <div class="motion-samples">
+        <bright-shape id="motion-ring" class="hdr-target" shape="ring" value="65" duration="750" track color="#26df8b" intensity="4" aria-hidden="true"></bright-shape>
+        <bright-shape id="motion-bar" class="hdr-target" shape="bar" value="65" duration="750" track color="#26df8b" intensity="4" aria-hidden="true"></bright-shape>
+        <span id="progress-label">65%</span>
+      </div>
+      <div class="button-row"><label class="check"><input id="loading" type="checkbox" /> Continuous loading</label><button id="progress" type="button">Change progress</button><button id="pulse" type="button">Pulse ring once</button><button id="stop" type="button">Stop motion</button></div>
+      <p class="note" id="motion-note">Motion starts only when you choose it. Reduced-motion settings are respected.</p>
+    </section>
+    <section aria-labelledby="diagnostics-heading">
+      <p class="eyebrow">05 / Reported capabilities</p><h2 id="diagnostics-heading">Signals, not a brightness meter.</h2>
+      <dl class="diagnostics" id="diagnostics"></dl>
+      <p class="note">“HDR renderer active” means the extended-range WebGPU renderer initialized. It does not establish the display’s output in nits.</p>
+    </section>
+    <section id="report" aria-labelledby="report-heading">
+      <p class="eyebrow">06 / Your observation</p><h2 id="report-heading">Make the result repeatable.</h2>
+      <form id="observations">
+        <fieldset><legend>Display setup</legend><div class="form-grid">
+          <label>Display model<input name="displayModel" placeholder="e.g. MacBook Pro built-in display" maxlength="200" /></label>
+          <label>Display connection<select name="connection"><option value="unknown">Unknown / not recorded</option value="built-in">Built-in display</option><option value="external">External display</option><option value="mirrored">Mirrored displays</option><option value="extended">Extended desktop</option></select></label>
+          <label>System brightness setting<input name="systemBrightness" placeholder="e.g. 75%; automatic brightness off" maxlength="200" /></label>
+          <label>System HDR setting<select name="systemHdr"><option value="unknown">Unknown / not recorded</option value="on">On</option><option value="off">Off</option><option value="not-applicable">No explicit HDR setting</option></select></label>
+          <label>Power source<select name="power"><option value="unknown">Unknown / not recorded</option><option value="plugged-in">Plugged in</option><option value="battery">Battery</option></select></label>
+          <label>OS / browser notes<input name="softwareNotes" placeholder="Optional exact versions or settings" maxlength="300" /></label>
+        </div></fieldset>
+        <fieldset><legend>What you see on this screen</legend><div class="form-grid">
+          <label>HDR white compared with reference<select name="whiteObservation"><option value="not-tested">Not tested</option><option value="brighter">Clearly brighter</option><option value="slightly-brighter">Slightly brighter</option><option value="same">Looks the same</option><option value="dimmer">Dimmer</option><option value="uncertain">Cannot tell</option></select></label>
+          <label>P3 compared with sRGB orange<select name="colorObservation"><option value="not-tested">Not tested</option><option value="different">Clearly different</option><option value="subtle">Subtle difference</option><option value="same">Looks the same</option><option value="uncertain">Cannot tell</option></select></label>
+          <label>Animation<select name="motionObservation"><option value="not-tested">Not tested</option><option value="smooth">Smooth</option><option value="stutters">Stutters / flickers</option><option value="static">Stays still</option></select></label>
+          <label>Room lighting<select name="roomLighting"><option value="unknown">Unknown / not recorded</option><option value="dim">Dim</option><option value="indoor">Typical indoor lighting</option><option value="bright">Bright / daylight</option></select></label>
+          <label class="wide">Notes<textarea name="notes" rows="3" maxlength="2000" placeholder="Anything that changed after moving windows, switching power, or adjusting settings"></textarea></label>
+        </div></fieldset>
+      </form>
+      <div class="button-row"><button id="copy" type="button">Copy diagnostic report</button><button id="download" type="button">Download JSON</button><button id="refresh" type="button">Refresh diagnostics</button></div>
+      <p id="report-status" role="status">Nothing is sent automatically. Review the report before sharing it.</p>
+      <label for="report-json">Report preview</label><textarea id="report-json" rows="12" readonly spellcheck="false"></textarea>
+      <p class="note">The report includes browser information, screen/window dimensions, component states, test settings, and the observations you enter. It does not include a device identifier or your browsing history.</p>
+    </section>
+  </main>
+  <footer class="shell"><a href="./#playground">Back to the playground</a><span>Record observations on the actual display.</span></footer>
+</body>
+</html>

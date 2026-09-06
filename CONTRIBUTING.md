@@ -42,6 +42,20 @@ changes. Run the complete workflow before tagging a release.
 
 Keep `index.d.ts` and `react.d.ts` aligned with the JavaScript API. Importing either package entry without a DOM must remain safe.
 
+## Hardware observations
+
+Open `/hardware.html` on the actual display being tested. Compare reference white
+with HDR white, sRGB with Display P3, and original images with HDR highlights.
+Use the HDR toggle and intensity slider, then exercise progress, loading, and pulse.
+Record the display model, system settings, power source, and what you observe.
+Copy or download the JSON report; nothing is sent automatically. Resetting test
+controls preserves your observations.
+
+Repeat for each browser/display combination and after moving between monitors.
+The report separates browser capabilities from manual observations. An initialized
+HDR renderer, software GPU test, or screenshot does not establish physical HDR
+brightness. Keep untested observations marked as such.
+
 ## Demo publishing
 
 GitHub Pages serves the repository root. In **Settings → Pages**, select **Deploy from a branch**, **main**, and **/(root)**. Changes pushed to that branch update the demo.

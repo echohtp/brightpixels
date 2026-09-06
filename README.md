@@ -2,7 +2,7 @@
 
 Dependency-free JavaScript web components for HDR text, image highlights, and native shapes. Brightpixels uses an extended-range WebGPU canvas and preserves fallback content when rendering is unavailable.
 
-[Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images)
+[Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
 ## What's new in 0.5
 
