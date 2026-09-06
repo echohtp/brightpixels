@@ -6,6 +6,7 @@ Brightpixels is an ES module with browser custom elements and TypeScript declara
 
 ```bash
 npm test
+npm run test:types
 npm pack --dry-run
 ```
 
@@ -16,6 +17,28 @@ python3 -m http.server 8080
 ```
 
 Open `http://localhost:8080/`. Validate the original-image fallback as well as HDR output on a compatible browser and display. Standard screenshots cannot establish physical HDR brightness.
+
+## Automated browser checks
+
+Development tools are dev dependencies only; the installed runtime remains
+dependency-free. Install browser test engines once, then run:
+
+```bash
+npx playwright install --with-deps chromium webkit
+npm run test:browser
+```
+
+The test server listens only on localhost port 4173. Chromium exercises the real
+WebGPU renderer using a software GPU in CI, including texture reuse and global
+disable/re-enable. Chromium and WebKit both exercise forced fallback, loading,
+reduced motion, progress updates, and cleanup. GPU coverage is intentionally
+Chromium-only; WebKit's GPU test is skipped, not counted as a GPU pass. These
+checks verify browser behavior, not physical HDR brightness or a guaranteed FPS.
+Software GPU flags are for this isolated test runner, not ordinary browsing.
+
+The Verify workflow runs on pushes and pull requests and uploads failure traces.
+Keep the React/TypeScript usage fixture and public declarations aligned with API
+changes. Run the complete workflow before tagging a release.
 
 Keep `index.d.ts` and `react.d.ts` aligned with the JavaScript API. Importing either package entry without a DOM must remain safe.
 

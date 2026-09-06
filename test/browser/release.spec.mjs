@@ -18,7 +18,7 @@ test('fallback loading, presets, reduced motion, and accessible content', async 
   expect(await page.locator('#state').evaluate((el) => [el.shape, el.color, el.d])).toEqual(['path', '#26df8b', 'M15 50 L40 75 L85 20']);
   await expect(page.getByText('Uploaded')).toBeVisible();
   expect(await page.locator('#state').evaluate((el) => el.shadowRoot.querySelector('img.track').hidden)).toBe(true);
-  expect(await page.locator('#state').evaluate((el) => el.shadowRoot.querySelector('bright-image img').complete)).toBe(true);
+  await expect.poll(() => page.locator('#state').evaluate((el) => el.shadowRoot.querySelector('bright-image img').complete)).toBe(true);
 });
 
 test('progress retargets and track remains separate from foreground', async ({ page }) => {

@@ -536,7 +536,7 @@ function makeTextElementClass() {
       if (resized) {
         this._gpu.maskTexture?.destroy();
         this._gpu.maskTexture = this._gpu.device.createTexture({
-        size: [width, height, 1],
+          size: [width, height, 1],
         format: "rgba8unorm",
         usage: GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.COPY_DST |
@@ -621,10 +621,11 @@ function makeTextElementClass() {
         return;
       }
 
+      let context;
       try {
         const device = await getDevice();
         if (!this.isConnected || !configuration.enabled) return;
-        const context = this._canvas.getContext("webgpu");
+        context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
         context.configure({
@@ -670,6 +671,7 @@ function makeTextElementClass() {
         this._setMode("hdr");
         this._requestRender();
       } catch {
+        context?.unconfigure?.();
         releaseGPU(this._gpu);
         this._gpu = null;
         this._setMode("fallback");
@@ -896,7 +898,7 @@ function makeImageElementClass() {
       if (resized) {
         this._gpu.sourceTexture?.destroy();
         this._gpu.sourceTexture = this._gpu.device.createTexture({
-        size: [width, height, 1],
+          size: [width, height, 1],
         format: "rgba8unorm-srgb",
         usage: GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.COPY_DST |
@@ -982,10 +984,11 @@ function makeImageElementClass() {
         return;
       }
 
+      let context;
       try {
         const device = await getDevice();
         if (!this.isConnected || !configuration.enabled) return;
-        const context = this._canvas.getContext("webgpu");
+        context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
         context.configure({
@@ -1031,6 +1034,7 @@ function makeImageElementClass() {
         this._setMode("hdr");
         this._requestRender();
       } catch {
+        context?.unconfigure?.();
         releaseGPU(this._gpu);
         this._gpu = null;
         this._setMode("fallback");
@@ -1115,14 +1119,12 @@ function makeShapeElementClass() {
       this._onResize = () => this._requestRender();
       this._bright.addEventListener("brightpixelsready", (event) => {
         event.stopPropagation();
-        this.dataset.brightpixelsMode = event.detail.mode;
-        this.dispatchEvent(new CustomEvent("brightpixelsready", {
-          bubbles: true, detail: { kind: "shape", mode: event.detail.mode, version: VERSION },
-        }));
+        this._setMode(event.detail.mode);
       });
     }
 
     connectedCallback() {
+      if (this._bright.mode) this._setMode(this._bright.mode);
       this._displayValue = this.value;
       this._syncLoading();
       document.addEventListener("visibilitychange", this._onVisibility);
@@ -1207,6 +1209,14 @@ function makeShapeElementClass() {
     get points() { return this.getAttribute("points") || ""; }
     set points(value) { this.setAttribute("points", value); }
     get mode() { return this.dataset.brightpixelsMode || null; }
+
+    _setMode(mode) {
+      if (this.dataset.brightpixelsMode === mode) return;
+      this.dataset.brightpixelsMode = mode;
+      this.dispatchEvent(new CustomEvent("brightpixelsready", {
+        bubbles: true, detail: { kind: "shape", mode, version: VERSION },
+      }));
+    }
 
     _requestRender() {
       if (!this.isConnected || this._frame) return;

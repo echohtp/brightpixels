@@ -4,6 +4,15 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 
 [Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images)
 
+## What's new in 0.5
+
+- Indeterminate rings and bars, plus loading, success, warning, and error presets.
+- Page-wide HDR enable/disable and extra-brightness control.
+- One shared JavaScript animation scheduler and reusable GPU textures.
+- Chromium/WebKit browser checks and React 19 / TypeScript examples in CI.
+
+[Try the state demo](https://echohtp.github.io/brightpixels/#states).
+
 ## Installation
 
 Install the published npm package:
@@ -205,6 +214,37 @@ keeps round caps inside the element. Empty or invalid points produce a horizonta
 line. Update `.points` to change a series. These are visual primitives, so provide
 labels or accompanying data for meaningful charts and status indicators.
 
+### Loading and status presets
+
+```html
+<bright-shape id="upload-state" status="loading" track intensity="3"
+  aria-hidden="true"></bright-shape>
+<span id="upload-label" role="status">Uploading…</span>
+
+<bright-shape shape="bar" indeterminate track intensity="3"
+  role="progressbar" aria-label="Upload in progress"></bright-shape>
+```
+
+```js
+const indicator = document.querySelector("#upload-state");
+indicator.setStatus("success", { pulse: true });
+document.querySelector("#upload-label").textContent = "Uploaded";
+```
+
+`status` supports `loading`, `success`, `warning`, and `error`. Each supplies a
+default shape, color, and path where appropriate. Explicit `shape`, `color`, or
+`d` attributes override those defaults. Clear `.status` with an empty string.
+`setStatus()` cancels any old pulse; its optional `pulse` runs only for a terminal
+status. Plain attribute/property status updates do not pulse automatically.
+
+`indeterminate` enables native loading motion on rings, arcs, and bars. Loading
+presets imply it; changing the preset away from loading stops it unless an
+explicit `indeterminate` attribute remains. The SVG and GPU texture stay cached
+while CSS animates their transform. Reduced-motion users see a steady indicator,
+and hidden pages pause it. `value` is ignored while indeterminate. Omit
+`aria-valuenow` for unknown progress; provide visible labels so color or motion
+is never the only signal.
+
 ### Background tracks and smooth progress
 
 ```html
@@ -327,12 +367,33 @@ export function Example() {
 
 ## API
 
+### Page-wide HDR control
+
+```js
+import { configureBrightpixels, getBrightpixelsConfig } from "brightpixels";
+
+configureBrightpixels({ brightness: 0.5 }); // Half the extra light above reference.
+configureBrightpixels({ enabled: false }); // Release HDR renderers; keep fallbacks.
+configureBrightpixels({ enabled: true, brightness: 1 });
+console.log(getBrightpixelsConfig()); // { enabled: true, brightness: 1 }
+```
+
+Settings apply to current and future components created by this imported module.
+`brightness` is clamped to 0–1: zero returns HDR signals to reference intensity;
+it does not make content black. `enabled: false` releases GPU resources and shows
+normal text, original images, and SVG shapes. Re-enabling attempts HDR again.
+The setting does not suppress loading-state communication. Reads return a copy,
+and imports/configuration remain safe without a browser DOM. Use one package
+instance for a page-wide setting; independently loaded copies have separate state.
+
 | Export | Description |
 | --- | --- |
 | `brighten(targets, settings?)` | Wraps element contents and returns `BrightTextElement[]`. |
 | `brightenImages(targets, settings?)` | Wraps images and returns `BrightImageElement[]`. |
 | `defineBrightpixels()` | Registers the custom elements; registration also runs on browser import. |
 | `version` | Package version string. |
+| `configureBrightpixels(options?)` | Applies global `enabled` and `brightness` settings and returns their current values. |
+| `getBrightpixelsConfig()` | Returns a copy of the current global settings. |
 
 Both helpers accept a CSS selector, an element, or an iterable of elements. Existing Brightpixels wrappers are reused. Imports are safe in environments without a DOM; helpers return empty arrays there.
 
