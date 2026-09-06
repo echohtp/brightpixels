@@ -104,6 +104,8 @@ test("registers the text and image custom elements in a browser", async () => {
       return this.attributes.get(name) ?? null;
     }
 
+    removeAttribute(name) { this.attributes.delete(name); }
+
     hasAttribute(name) {
       return this.attributes.has(name);
     }
@@ -164,6 +166,84 @@ test("registers the text and image custom elements in a browser", async () => {
     shapeState.points = "";
     shapeState.thickness = 1000;
     assert.match(shapeState._svg(100, 4, "red"), /points="2,2 98,2".*stroke-width="4"/);
+
+    shapeState.thickness = 4;
+    shapeState.value = 100;
+    shapeState.shape = "arc";
+    shapeState.sweep = 360;
+    const fullArc = shapeState._svg(100, 100, "red");
+    assert.equal((fullArc.match(/ A48,48/g) || []).length, 2);
+    shapeState.value = 0;
+    assert.match(shapeState._svg(100, 100, "red"), /<path d=""/);
+    shapeState.value = 100;
+    shapeState.sweep = 999;
+    assert.equal(shapeState.sweep, 360);
+    shapeState.shape = "pill";
+    assert.match(shapeState._svg(200, 30, "red"), /rx="15"/);
+    shapeState.shape = "diamond";
+    assert.match(shapeState._svg(100, 100, "red"), /points="50,0 100,50 50,100 0,50"/);
+    shapeState.shape = "polygon";
+    shapeState.points = "0,0 100,0 50,100";
+    assert.match(shapeState._svg(100, 50, "red"), /points="0,0 100,0 50,50"/);
+    shapeState.points = "0,0 invalid";
+    assert.match(shapeState._svg(100, 50, "red"), /points=""/);
+    shapeState.shape = "path";
+    shapeState.d = 'M0 0"><script>alert(1)</script>';
+    assert.doesNotMatch(shapeState._svg(100, 50, "red"), /<script>/);
+    shapeState.filled = true;
+    assert.equal(shapeState.filled, true);
+    shapeState.filled = false;
+    assert.equal(shapeState.filled, false);
+    shapeState.shape = "line";
+    shapeState.points = "";
+    shapeState.dash = "6, 8";
+    assert.match(shapeState._svg(100, 20, "red", "blue"), /gradientUnits="userSpaceOnUse" x1="0" y1="10" x2="100" y2="10"/);
+    assert.match(shapeState._svg(100, 20, "red"), /stroke-dasharray="6 8"/);
+    shapeState.dash = '6"><script>';
+    assert.doesNotMatch(shapeState._svg(100, 20, "red"), /stroke-dasharray|<script>/);
+
+    const oldRAF = globalThis.requestAnimationFrame, oldCancel = globalThis.cancelAnimationFrame;
+    const frames = new Map();
+    let nextFrame = 0;
+    globalThis.requestAnimationFrame = (callback) => { frames.set(++nextFrame, callback); return nextFrame; };
+    globalThis.cancelAnimationFrame = (id) => frames.delete(id);
+    const runFrame = (now) => { const [id, callback] = frames.entries().next().value; frames.delete(id); callback(now); };
+    shapeState.isConnected = true;
+    shapeState._bright = {};
+    shapeState.intensity = 2;
+    try {
+      shapeState.pulse({ intensity: 8, duration: 1000 });
+      runFrame(0);
+      assert.equal(shapeState._bright.intensity, 2);
+      runFrame(500);
+      assert.equal(shapeState._bright.intensity, 8);
+      runFrame(1000);
+      assert.equal(shapeState._bright.intensity, 2);
+      assert.equal(frames.size, 0);
+      shapeState.pulse();
+      shapeState.pulse();
+      assert.equal(frames.size, 1);
+      shapeState.stopPulse();
+      assert.equal(frames.size, 0);
+      window.matchMedia = () => ({ matches: true });
+      shapeState.pulse();
+      assert.equal(frames.size, 0);
+      delete window.matchMedia;
+      document.hidden = true;
+      shapeState.pulse();
+      assert.equal(frames.size, 0);
+      delete document.hidden;
+      shapeState.pulse();
+      shapeState.isConnected = false;
+      runFrame(0);
+      assert.equal(frames.size, 0);
+      assert.equal(shapeState._bright.intensity, 2);
+    } finally {
+      if (oldRAF === undefined) delete globalThis.requestAnimationFrame; else globalThis.requestAnimationFrame = oldRAF;
+      if (oldCancel === undefined) delete globalThis.cancelAnimationFrame; else globalThis.cancelAnimationFrame = oldCancel;
+      delete window.matchMedia;
+      delete document.hidden;
+    }
 
     const heading = new FakeElement("h1");
     heading.append(new FakeElement("span"));

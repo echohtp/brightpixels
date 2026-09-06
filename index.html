@@ -245,6 +245,29 @@
         font-size: clamp(0.75rem, 2vw, 1rem);
       }
 
+      .links { flex-wrap:wrap; justify-content:flex-end; }
+      .shape-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:1rem; margin:3rem 0; }
+      .shape-gallery figure { display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:1.5rem; margin:0; padding:1.5rem 0.5rem; border:1px solid #ffffff18; border-radius:1rem; }
+      .shape-gallery bright-shape { width:4rem; height:4rem; }
+      .shape-gallery bright-shape[shape="pill"], .shape-gallery bright-shape[shape="rect"] { width:6rem; height:3rem; }
+      .shape-gallery figcaption { font-size:0.8rem; }
+      .playground-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin:2rem 0; }
+      .playground-preview { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2rem; min-height:22rem; border:1px solid #ffffff18; border-radius:1rem; padding:2rem; }
+      #play-shape { width:10rem; height:10rem; padding:0; }
+      #play-shape[shape="bar"], #play-shape[shape="line"] { width:12rem; height:3rem; }
+      #play-shape[shape="pill"], #play-shape[shape="rect"] { width:12rem; height:6rem; }
+      #play-shape[shape="dot"] { width:3rem; height:3rem; }
+      .playground-controls { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-content:start; }
+      .playground-controls label { display:grid; gap:0.4rem; font-size:0.85rem; }
+      .playground-controls input, .playground-controls select { min-width:0; width:100%; accent-color:#ff5900; }
+      .playground-controls select, .playground-controls input:not([type="range"]):not([type="checkbox"]):not([type="color"]), #play-pulse { border:1px solid #ffffff30; border-radius:0.5rem; padding:0.6rem; background:#15151a; color:#eee; font:inherit; }
+      .playground-controls .check-control { display:flex; align-items:center; gap:0.5rem; }
+      .check-control input { width:auto; }
+      .wide-control { grid-column:1 / -1; }
+      .playground-controls [hidden] { display:none; }
+      #play-pulse { cursor:pointer; padding:0.75rem 1.5rem; }
+      @media (max-width:40rem) { .playground-layout { grid-template-columns:1fr; } .links { gap:0.6rem; } }
+
       .shape-demos {
         display: flex;
         flex-wrap: wrap;
@@ -318,6 +341,7 @@
         <a href="#images">Images</a>
         <a href="#color">Color</a>
         <a href="#shapes">Shapes</a>
+        <a href="#playground">Play</a>
         <a href="https://github.com/echohtp/brightpixels#readme">Docs</a>
       </nav>
     </header>
@@ -524,6 +548,50 @@
   style="width:12rem;height:4rem" color="#26df8b" intensity="4"&gt;&lt;/bright-shape&gt;</code></pre>
       </section>
 
+      <section class="shell" id="playground" aria-labelledby="playground-heading">
+        <p class="section-label">Shape playground</p>
+        <h2 id="playground-heading">Make it your own.</h2>
+        <p class="caption">Thirteen native primitives. Pick a shape, mix colors, and give it a single swell of light.</p>
+        <div class="shape-gallery">
+          <figure><bright-shape shape="arc" start-angle="135" sweep="270" value="80" color="#ff5900" color-end="#ffca36" intensity="3" thickness="8" aria-hidden="true"></bright-shape><figcaption>Arc / gauge</figcaption></figure>
+          <figure><bright-shape shape="star" color="#ffca36" intensity="3" aria-hidden="true"></bright-shape><figcaption>Star</figcaption></figure>
+          <figure><bright-shape shape="triangle" color="#26df8b" intensity="3" aria-hidden="true"></bright-shape><figcaption>Triangle</figcaption></figure>
+          <figure><bright-shape shape="diamond" color="#68bfff" intensity="3" aria-hidden="true"></bright-shape><figcaption>Diamond</figcaption></figure>
+          <figure><bright-shape shape="pill" color="#ff5900" color-end="#ffca36" intensity="3" aria-hidden="true"></bright-shape><figcaption>Gradient pill</figcaption></figure>
+          <figure><bright-shape shape="rect" radius="10" color="#68bfff" color-end="#af6bff" angle="45" intensity="3" aria-hidden="true"></bright-shape><figcaption>Filled rectangle</figcaption></figure>
+          <figure><bright-shape shape="polygon" points="25,0 75,0 100,50 75,100 25,100 0,50" color="#af6bff" intensity="3" aria-hidden="true"></bright-shape><figcaption>Custom polygon</figcaption></figure>
+          <figure><bright-shape shape="path" d="M15 50 L40 75 L85 20" color="#26df8b" thickness="8" intensity="3" aria-hidden="true"></bright-shape><figcaption>Custom path</figcaption></figure>
+          <figure><bright-shape shape="ring" dash="6 8" linecap="butt" thickness="5" color="#ff5900" intensity="3" aria-hidden="true"></bright-shape><figcaption>Segmented ring</figcaption></figure>
+        </div>
+        <div class="playground-layout">
+          <div class="playground-preview">
+            <bright-shape id="play-shape" shape="arc" start-angle="135" sweep="270" value="75"
+              color="#ff5900" color-end="#ffca36" thickness="6" intensity="3" aria-hidden="true"></bright-shape>
+            <p id="play-status" class="caption" role="status">Try a single brightness pulse.</p>
+            <button id="play-pulse" type="button">Pulse once</button>
+          </div>
+          <form class="playground-controls" id="play-controls">
+            <label>Shape<select id="play-kind">
+              <option>arc</option><option>ring</option><option>outline</option><option>bar</option><option>dot</option><option>line</option><option>rect</option><option>pill</option><option>triangle</option><option>diamond</option><option>star</option><option>polygon</option><option>path</option>
+            </select></label>
+            <label>Fill <output id="play-value-output">75%</output><input id="play-value" type="range" min="0" max="100" value="75" /></label>
+            <label>Intensity <output id="play-intensity-output">3×</output><input id="play-intensity" type="range" min="1" max="8" step="0.5" value="3" /></label>
+            <label>Thickness<input id="play-thickness" type="range" min="1" max="16" value="6" /></label>
+            <label>Color<input id="play-color" type="color" value="#ff5900" /></label>
+            <label>End color<input id="play-end" type="color" value="#ffca36" /></label>
+            <label class="check-control"><input id="play-gradient" type="checkbox" checked /> Gradient</label>
+            <label class="check-control"><input id="play-dashed" type="checkbox" /> Dashed stroke</label>
+            <label>Gradient angle<input id="play-angle" type="range" min="0" max="360" value="0" /></label>
+            <label>Arc sweep<input id="play-sweep" type="range" min="0" max="360" value="270" /></label>
+            <label class="wide-control" id="play-points-label" hidden>Points (x,y in 0–100)<input id="play-points" value="0,80 25,55 50,65 75,30 100,10" /></label>
+            <label class="wide-control" id="play-path-label" hidden>SVG path (0–100 coordinates)<input id="play-path" value="M15 50 L40 75 L85 20" /></label>
+          </form>
+        </div>
+        <pre><code id="play-code"></code></pre>
+        <p class="caption" style="margin-top:1rem">Fill applies to arcs, rings, and bars. Dash and thickness apply to strokes.
+          Pulses respect reduced motion and stop when the page is hidden. HDR brightness requires a compatible display and browser.</p>
+      </section>
+
       <section class="shell">
         <p class="section-label">HTML usage</p>
         <div class="code-grid">
@@ -543,6 +611,47 @@
       <span>Best viewed on an HDR display.</span>
     </footer>
     <script type="module">
+      const play = document.querySelector("#play-shape");
+      const field = (name) => document.querySelector(`#play-${name}`);
+      const syncPlay = () => {
+        play.stopPulse();
+        play.shape = field("kind").value;
+        play.value = field("value").value;
+        play.intensity = field("intensity").value;
+        play.thickness = field("thickness").value;
+        play.color = field("color").value;
+        play.colorEnd = field("gradient").checked ? field("end").value : "";
+        play.angle = field("angle").value;
+        play.sweep = field("sweep").value;
+        play.dash = field("dashed").checked ? "6 8" : "";
+        play.linecap = field("dashed").checked ? "butt" : "round";
+        play.points = field("points").value;
+        play.d = field("path").value;
+        field("points-label").hidden = !["line", "polygon"].includes(play.shape);
+        field("path-label").hidden = play.shape !== "path";
+        field("sweep").disabled = play.shape !== "arc";
+        field("value").disabled = !["ring", "arc", "bar"].includes(play.shape);
+        field("value-output").textContent = play.value + "%";
+        field("intensity-output").textContent = play.intensity + "×";
+        const names = ["shape", "color", "intensity", "thickness"];
+        if (["ring", "arc", "bar"].includes(play.shape)) names.push("value");
+        if (play.shape === "arc") names.push("start-angle", "sweep");
+        if (play.colorEnd) names.push("color-end", "angle");
+        if (play.dash) names.push("dash", "linecap");
+        if (["line", "polygon"].includes(play.shape)) names.push("points");
+        if (play.shape === "path") names.push("d");
+        const escape = (value) => value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+        field("code").textContent = "<bright-shape\n" + names.map((name) => `  ${name}="${escape(play.getAttribute(name) || "")}"`).join("\n") + '\n  style="width:12rem;height:6rem"\n  aria-hidden="true">\n</bright-shape>';
+      };
+      field("controls").addEventListener("input", syncPlay);
+      field("controls").addEventListener("submit", (event) => event.preventDefault());
+      field("pulse").addEventListener("click", () => {
+        play.pulse({ intensity: 12, duration: 1200 });
+        field("status").textContent = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "Reduced motion is enabled; the shape stays steady."
+          : "One brightness swell, then back to your selected intensity.";
+      });
+      syncPlay();
       const ring = document.querySelector("#shape-ring");
       const bar = document.querySelector("#shape-progress");
       document.querySelector("#shape-value").addEventListener("input", (event) => {

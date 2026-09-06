@@ -37,12 +37,20 @@ declare module "react" {
       "bright-image": BrightImageProps;
       "bright-shape": React.DetailedHTMLProps<React.HTMLAttributes<BrightShapeElement>, BrightShapeElement>
         & BrightpixelsProps & {
-          shape?: "ring" | "outline" | "bar" | "dot" | "line";
+          shape?: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
           color?: string;
           value?: number | string;
           thickness?: number | string;
           radius?: number | string;
           points?: string;
+          "start-angle"?: number | string;
+          sweep?: number | string;
+          d?: string;
+          filled?: boolean;
+          "color-end"?: string;
+          angle?: number | string;
+          dash?: string;
+          linecap?: "butt" | "round" | "square";
         };
     }
   }

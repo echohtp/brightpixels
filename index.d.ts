@@ -20,10 +20,10 @@ export interface BrightImageElement extends HTMLElement {
 export declare const version: "0.2.0";
 
 export interface BrightShapeElement extends HTMLElement {
-  shape: "ring" | "outline" | "bar" | "dot" | "line";
+  shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
   color: string;
   intensity: number;
-  /** Percent filled, 0–100; defaults to 100. Applies to rings and bars. */
+  /** Percent filled, 0–100; defaults to 100. Applies to rings, arcs, and bars. */
   value: number;
   /** Ring/outline/line stroke width in CSS pixels; defaults to 4. */
   thickness: number;
@@ -31,6 +31,24 @@ export interface BrightShapeElement extends HTMLElement {
   radius: number;
   /** Line points as space-separated x,y pairs in 0–100 coordinates. Empty means a horizontal line. */
   points: string;
+  /** Arc start in degrees, clockwise from the right; defaults to -90 (top). */
+  startAngle: number;
+  /** Arc extent, 0–360 degrees; defaults to 270. */
+  sweep: number;
+  /** Custom SVG path data in a 0–100 coordinate system. */
+  d: string;
+  /** Fill a custom path in addition to its stroke. */
+  filled: boolean;
+  /** Optional second CSS color for a linear gradient. */
+  colorEnd: string;
+  /** Gradient direction: 0 goes left to right; 90 goes top to bottom. */
+  angle: number;
+  /** SVG dash lengths in CSS pixels, separated by spaces or commas. */
+  dash: string;
+  linecap: "butt" | "round" | "square";
+  /** One brightness swell, returning to the base intensity; respects reduced motion. */
+  pulse(options?: { intensity?: number; duration?: number }): void;
+  stopPulse(): void;
   readonly mode: "hdr" | "fallback" | null;
 }
 

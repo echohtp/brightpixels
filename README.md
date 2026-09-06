@@ -1,6 +1,6 @@
 # Brightpixels
 
-JavaScript web components for HDR text and image highlights. Brightpixels uses an extended-range WebGPU canvas and preserves fallback content when rendering is unavailable.
+Dependency-free JavaScript web components for HDR text, image highlights, and native shapes. Brightpixels uses an extended-range WebGPU canvas and preserves fallback content when rendering is unavailable.
 
 [Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images)
 
@@ -204,6 +204,70 @@ no continuous animation loop. Content Security Policy must allow `data:` images.
 keeps round caps inside the element. Empty or invalid points produce a horizontal
 line. Update `.points` to change a series. These are visual primitives, so provide
 labels or accompanying data for meaningful charts and status indicators.
+
+### More primitives and paint options
+
+The [interactive playground](https://echohtp.github.io/brightpixels/#playground)
+includes a shape picker, color and gradient controls, progress, stroke settings,
+editable paths, and a generated HTML example.
+
+| Shapes | Use |
+| --- | --- |
+| `ring`, `arc`, `bar` | Progress and gauges; `value` controls completion. |
+| `outline`, `line` | Borders, dividers, and polylines. |
+| `dot`, `rect`, `pill` | Filled ellipses, rectangles, and capsules. |
+| `triangle`, `diamond`, `star` | Filled symbols. |
+| `polygon`, `path` | Custom geometry, using `points` or SVG `d`. |
+
+```html
+<!-- Gauge: clockwise from 135 degrees, across a 270-degree sweep. -->
+<bright-shape shape="arc" start-angle="135" sweep="270" value="75"
+  color="#ff5900" color-end="#ffca36" intensity="3"></bright-shape>
+
+<!-- Segmented indicator. -->
+<bright-shape shape="ring" dash="6 8" linecap="butt"
+  thickness="5" color="#26df8b" intensity="3"></bright-shape>
+
+<!-- Native checkmark. Path coordinates use a 0–100 viewBox. -->
+<bright-shape shape="path" d="M15 50 L40 75 L85 20"
+  color="#26df8b" intensity="3"></bright-shape>
+
+<!-- A filled gradient badge. -->
+<bright-shape shape="pill" color="#ff5900" color-end="#ffca36"
+  angle="0" intensity="3"></bright-shape>
+```
+
+`color-end` enables a two-color linear gradient; omit it for a solid color.
+`angle="0"` runs left to right and `angle="90"` runs top to bottom. Both colors
+accept CSS colors, including Display P3 where supported.
+
+`dash` accepts nonnegative lengths separated by spaces or commas. `linecap` is
+`round` (default), `butt`, or `square`. On partially filled rings, the progress
+arc takes precedence over decorative dashes. Arcs support dashes at any value.
+Arc `start-angle` defaults to -90 (top), `sweep` to 270 degrees, and `value` to 100.
+
+Polygons need at least three `points`; invalid polygons draw nothing. Custom
+paths use SVG `d` in a 0–100 viewBox stretched to the element's dimensions. They
+are stroked by default; add the boolean `filled` attribute to fill them too.
+Invalid path syntax follows the browser's SVG rendering behavior. Attribute
+values are escaped before SVG generation.
+
+### One-shot brightness pulses
+
+```js
+const indicator = document.querySelector("bright-shape");
+indicator.pulse({ intensity: 8, duration: 1200 });
+// Optional: cancel early and restore the base intensity.
+indicator.stopPulse();
+```
+
+The pulse rises smoothly from the element's base intensity to the requested peak
+and back. It never lowers a brighter base, clamps peak intensity to 1–16 and
+duration to 250–5000 milliseconds, and cancels a previous pulse when retriggered.
+It skips reduced-motion users and hidden pages, stops on disconnect or a base
+intensity change, and leaves no animation loop running afterward. Only the HDR
+signal changes; fallback SVG stays at ordinary brightness. Use a visible label
+or state change as well when communicating task completion.
 
 ## Wide-gamut color experiment
 

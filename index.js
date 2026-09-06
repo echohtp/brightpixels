@@ -974,7 +974,7 @@ function shapeNumber(element, name, fallback, min, max) {
 function makeShapeElementClass() {
   return class BrightShapeElement extends HTMLElement {
     static get observedAttributes() {
-      return ["shape", "color", "intensity", "value", "thickness", "radius", "points"];
+      return ["shape", "color", "intensity", "value", "thickness", "radius", "points", "start-angle", "sweep", "d", "filled", "color-end", "angle", "dash", "linecap"];
     }
 
     constructor() {
@@ -985,6 +985,8 @@ function makeShapeElementClass() {
             vertical-align:middle; color:white; dynamic-range-limit:no-limit; }
           :host([shape="bar"]) { width:16rem; height:0.75rem; }
           :host([shape="dot"]) { width:1rem; height:1rem; }
+          :host([shape="pill"]) { width:8rem; height:2rem; }
+          :host([shape="rect"]) { width:8rem; height:4rem; }
           :host([shape="line"]) { width:12rem; height:0.5rem; }
           :host([shape="outline"]) { width:auto; height:auto; min-width:3rem;
             min-height:3rem; padding:1rem; }
@@ -1000,6 +1002,9 @@ function makeShapeElementClass() {
       this._image = this.shadowRoot.querySelector("img");
       this._probe = this.shadowRoot.querySelector(".color");
       this._frame = 0;
+      this._pulseFrame = 0;
+      this._pulsing = false;
+      this._onVisibility = () => { if (document.hidden) this.stopPulse(); };
       this._resizeObserver = typeof ResizeObserver === "function"
         ? new ResizeObserver(() => this._requestRender()) : null;
       this._onResize = () => this._requestRender();
@@ -1013,6 +1018,7 @@ function makeShapeElementClass() {
     }
 
     connectedCallback() {
+      document.addEventListener("visibilitychange", this._onVisibility);
       this._resizeObserver?.observe(this);
       if (!this._resizeObserver) window.addEventListener("resize", this._onResize);
       this._requestRender();
@@ -1021,18 +1027,20 @@ function makeShapeElementClass() {
     disconnectedCallback() {
       this._resizeObserver?.disconnect();
       window.removeEventListener("resize", this._onResize);
+      document.removeEventListener("visibilitychange", this._onVisibility);
+      this.stopPulse();
       cancelAnimationFrame(this._frame);
       this._frame = 0;
     }
 
     attributeChangedCallback(name) {
-      if (name === "intensity") this._bright.intensity = this.intensity;
+      if (name === "intensity") this.stopPulse();
       else this._requestRender();
     }
 
     get shape() {
       const value = this.getAttribute("shape");
-      return ["ring", "outline", "bar", "dot", "line"].includes(value) ? value : "ring";
+      return ["ring", "outline", "bar", "dot", "line", "arc", "rect", "pill", "triangle", "diamond", "star", "polygon", "path"].includes(value) ? value : "ring";
     }
     set shape(value) { this.setAttribute("shape", value); }
     get color() { return this.getAttribute("color") || "white"; }
@@ -1045,6 +1053,22 @@ function makeShapeElementClass() {
     set thickness(value) { this.setAttribute("thickness", value); }
     get radius() { return shapeNumber(this, "radius", 12, 0, 10000); }
     set radius(value) { this.setAttribute("radius", value); }
+    get startAngle() { return shapeNumber(this, "start-angle", -90, -360, 360); }
+    set startAngle(value) { this.setAttribute("start-angle", value); }
+    get sweep() { return shapeNumber(this, "sweep", 270, 0, 360); }
+    set sweep(value) { this.setAttribute("sweep", value); }
+    get d() { return this.getAttribute("d") || ""; }
+    set d(value) { this.setAttribute("d", value); }
+    get filled() { return this.hasAttribute("filled"); }
+    set filled(value) { if (value) this.setAttribute("filled", ""); else this.removeAttribute("filled"); }
+    get colorEnd() { return this.getAttribute("color-end") || ""; }
+    set colorEnd(value) { this.setAttribute("color-end", value); }
+    get angle() { return shapeNumber(this, "angle", 0, -360, 360); }
+    set angle(value) { this.setAttribute("angle", value); }
+    get dash() { return this.getAttribute("dash") || ""; }
+    set dash(value) { this.setAttribute("dash", value); }
+    get linecap() { return ["butt", "round", "square"].includes(this.getAttribute("linecap")) ? this.getAttribute("linecap") : "round"; }
+    set linecap(value) { this.setAttribute("linecap", value); }
     get points() { return this.getAttribute("points") || ""; }
     set points(value) { this.setAttribute("points", value); }
     get mode() { return this.dataset.brightpixelsMode || null; }
@@ -1057,16 +1081,76 @@ function makeShapeElementClass() {
       });
     }
 
-    _svg(width, height, color) {
-      // Escape the resolved CSS color before placing it in XML attributes.
-      const safeColor = color.replace(/[&<>"']/g, (c) => ({
+    pulse({ intensity = 8, duration = 1000 } = {}) {
+      this.stopPulse();
+      if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      const peak = Math.max(this.intensity, normalizeIntensity(intensity, 8));
+      const milliseconds = Number.isFinite(Number(duration)) ? Math.min(5000, Math.max(250, Number(duration))) : 1000;
+      const base = this.intensity;
+      let start;
+      this._pulsing = true;
+      const tick = (now) => {
+        if (!this.isConnected || document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { this.stopPulse(); return; }
+        start ??= now;
+        const t = Math.min(1, (now - start) / milliseconds);
+        this._bright.intensity = base + (peak - base) * Math.sin(Math.PI * t) ** 2;
+        if (t < 1) this._pulseFrame = requestAnimationFrame(tick);
+        else this.stopPulse();
+      };
+      this._pulseFrame = requestAnimationFrame(tick);
+    }
+
+    stopPulse() {
+      cancelAnimationFrame(this._pulseFrame);
+      this._pulseFrame = 0;
+      this._pulsing = false;
+      this._bright.intensity = this.intensity;
+    }
+
+    _svg(width, height, color, endColor = "") {
+      const escape = (value) => value.replace(/[&<>"']/g, (c) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
       })[c]);
+      let safeColor = escape(color);
+      let defs = "";
+      if (endColor) {
+        const angle = this.angle * Math.PI / 180;
+        const dx = Math.cos(angle) / 2, dy = Math.sin(angle) / 2;
+        const paintWidth = this.shape === "path" ? 100 : width;
+        const paintHeight = this.shape === "path" ? 100 : height;
+        defs = `<defs><linearGradient id="paint" gradientUnits="userSpaceOnUse" x1="${(0.5 - dx) * paintWidth}" y1="${(0.5 - dy) * paintHeight}" x2="${(0.5 + dx) * paintWidth}" y2="${(0.5 + dy) * paintHeight}"><stop stop-color="${safeColor}"/><stop offset="1" stop-color="${escape(endColor)}"/></linearGradient></defs>`;
+        safeColor = "url(#paint)";
+      }
+      const dashValues = this.dash.trim().split(/[\s,]+/).map(Number);
+      const dash = this.dash.trim() && dashValues.every((n) => Number.isFinite(n) && n >= 0) && dashValues.some((n) => n > 0)
+        ? ` stroke-dasharray="${dashValues.join(" ")}"` : "";
       const stroke = Math.min(this.thickness, Math.min(width, height) / (this.shape === "line" ? 1 : 2));
       const inset = stroke / 2;
       const fraction = this.value / 100;
       let body;
-      if (this.shape === "dot") {
+      if (this.shape === "arc") {
+        const radius = (Math.min(width, height) - stroke) / 2;
+        const sweep = this.sweep * fraction;
+        const point = (angle) => { const radians = angle * Math.PI / 180; return [width / 2 + radius * Math.cos(radians), height / 2 + radius * Math.sin(radians)].join(","); };
+        const middle = point(this.startAngle + sweep / 2);
+        const path = sweep === 0 ? "" : `M${point(this.startAngle)} A${radius},${radius} 0 0 1 ${middle} A${radius},${radius} 0 0 1 ${point(this.startAngle + sweep)}`;
+        body = `<path d="${path}" fill="none" stroke="${safeColor}" stroke-width="${stroke}"/>`;
+      } else if (this.shape === "rect" || this.shape === "pill") {
+        body = `<rect width="${width}" height="${height}" rx="${this.shape === "pill" ? Math.min(width, height) / 2 : this.radius}" fill="${safeColor}"/>`;
+      } else if (["triangle", "diamond", "star", "polygon"].includes(this.shape)) {
+        let points;
+        if (this.shape === "triangle") points = [[50, 0], [100, 100], [0, 100]];
+        else if (this.shape === "diamond") points = [[50, 0], [100, 50], [50, 100], [0, 50]];
+        else if (this.shape === "star") points = Array.from({ length: 10 }, (_, i) => { const a = (i * 36 - 90) * Math.PI / 180, r = i % 2 ? 22 : 50; return [50 + r * Math.cos(a), 50 + r * Math.sin(a)]; });
+        else {
+          const pairs = this.points.trim().split(/\s+/).map((pair) => pair.split(","));
+          points = pairs.length >= 3 && pairs.every((pair) => pair.length === 2 && pair.every((v) => v.trim() && Number.isFinite(Number(v)))) ? pairs.map((p) => p.map(Number)) : [];
+        }
+        const mapped = points.map(([x, y]) => [Math.max(0, Math.min(100, x)) / 100 * width, Math.max(0, Math.min(100, y)) / 100 * height].join(",")).join(" ");
+        body = `<polygon points="${mapped}" fill="${safeColor}"/>`;
+      } else if (this.shape === "path") {
+        body = `<svg x="${inset}" y="${inset}" width="${width - stroke}" height="${height - stroke}" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${escape(this.d)}" fill="${this.filled ? safeColor : "none"}" stroke="${safeColor}" stroke-width="${stroke}" vector-effect="non-scaling-stroke"/></svg>`;
+      } else if (this.shape === "dot") {
         body = `<ellipse cx="${width / 2}" cy="${height / 2}" rx="${width / 2}" ry="${height / 2}" fill="${safeColor}"/>`;
       } else if (this.shape === "line") {
         const pairs = this.points.trim().split(/\s+/).map((pair) => pair.split(","));
@@ -1079,7 +1163,7 @@ function makeShapeElementClass() {
           const py = inset + Math.min(100, Math.max(0, y)) / 100 * (height - stroke);
           return `${px},${py}`;
         }).join(" ");
-        body = `<polyline points="${points}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        body = `<polyline points="${points}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" stroke-linejoin="round"/>`;
       } else if (this.shape === "bar") {
         const filledWidth = width * fraction;
         body = `<rect width="${filledWidth}" height="${height}" rx="${Math.min(this.radius, height / 2, filledWidth / 2)}" fill="${safeColor}"/>`;
@@ -1088,18 +1172,26 @@ function makeShapeElementClass() {
       } else {
         const radius = (Math.min(width, height) - stroke) / 2;
         const circumference = 2 * Math.PI * radius;
-        body = fraction === 0 ? "" : `<circle cx="${width / 2}" cy="${height / 2}" r="${radius}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" stroke-dasharray="${fraction * circumference} ${circumference}" transform="rotate(-90 ${width / 2} ${height / 2})"/>`;
+        body = fraction === 0 ? "" : `<circle cx="${width / 2}" cy="${height / 2}" r="${radius}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" ${dash && fraction === 1 ? "" : `stroke-dasharray="${fraction * circumference} ${circumference}"`} transform="rotate(-90 ${width / 2} ${height / 2})"/>`;
       }
-      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+      // Explicit progress dash takes precedence on rings; other strokes inherit dash.
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${defs}<g stroke-linecap="${this.linecap}" stroke-linejoin="round"${dash}>${body}</g></svg>`;
     }
 
     _render() {
       const { width, height } = this.getBoundingClientRect();
       if (!width || !height) return;
-      this._bright.intensity = this.intensity;
+      if (!this._pulsing) this._bright.intensity = this.intensity;
       this._probe.style.color = "white";
       this._probe.style.color = this.color;
-      const svg = this._svg(width, height, getComputedStyle(this._probe).color);
+      const color = getComputedStyle(this._probe).color;
+      let endColor = "";
+      if (this.colorEnd) {
+        this._probe.style.color = "white";
+        this._probe.style.color = this.colorEnd;
+        endColor = getComputedStyle(this._probe).color;
+      }
+      const svg = this._svg(width, height, color, endColor);
       const source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       if (this._image.getAttribute("src") !== source) this._image.src = source;
     }
