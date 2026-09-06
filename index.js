@@ -965,6 +965,147 @@ function makeImageElementClass() {
   };
 }
 
+function shapeNumber(element, name, fallback, min, max) {
+  const raw = element.getAttribute(name);
+  const value = raw === null || raw.trim() === "" ? fallback : Number(raw);
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+}
+
+function makeShapeElementClass() {
+  return class BrightShapeElement extends HTMLElement {
+    static get observedAttributes() {
+      return ["shape", "color", "intensity", "value", "thickness", "radius", "points"];
+    }
+
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" }).innerHTML = `
+        <style>
+          :host { display:inline-grid; position:relative; width:6rem; height:6rem;
+            vertical-align:middle; color:white; dynamic-range-limit:no-limit; }
+          :host([shape="bar"]) { width:16rem; height:0.75rem; }
+          :host([shape="dot"]) { width:1rem; height:1rem; }
+          :host([shape="line"]) { width:12rem; height:0.5rem; }
+          :host([shape="outline"]) { width:auto; height:auto; min-width:3rem;
+            min-height:3rem; padding:1rem; }
+          bright-image { position:absolute; inset:0; width:100%; height:100%;
+            pointer-events:none; dynamic-range-limit:no-limit; }
+          img { display:block; width:100%; height:100%; }
+          slot { position:relative; display:grid; place-items:center; min-width:0; }
+          .color { position:absolute; visibility:hidden; pointer-events:none; }
+        </style>
+        <bright-image boost="all" aria-hidden="true"><img alt="" /></bright-image>
+        <slot></slot><span class="color" aria-hidden="true"></span>`;
+      this._bright = this.shadowRoot.querySelector("bright-image");
+      this._image = this.shadowRoot.querySelector("img");
+      this._probe = this.shadowRoot.querySelector(".color");
+      this._frame = 0;
+      this._resizeObserver = typeof ResizeObserver === "function"
+        ? new ResizeObserver(() => this._requestRender()) : null;
+      this._onResize = () => this._requestRender();
+      this._bright.addEventListener("brightpixelsready", (event) => {
+        event.stopPropagation();
+        this.dataset.brightpixelsMode = event.detail.mode;
+        this.dispatchEvent(new CustomEvent("brightpixelsready", {
+          bubbles: true, detail: { kind: "shape", mode: event.detail.mode, version: VERSION },
+        }));
+      });
+    }
+
+    connectedCallback() {
+      this._resizeObserver?.observe(this);
+      if (!this._resizeObserver) window.addEventListener("resize", this._onResize);
+      this._requestRender();
+    }
+
+    disconnectedCallback() {
+      this._resizeObserver?.disconnect();
+      window.removeEventListener("resize", this._onResize);
+      cancelAnimationFrame(this._frame);
+      this._frame = 0;
+    }
+
+    attributeChangedCallback(name) {
+      if (name === "intensity") this._bright.intensity = this.intensity;
+      else this._requestRender();
+    }
+
+    get shape() {
+      const value = this.getAttribute("shape");
+      return ["ring", "outline", "bar", "dot", "line"].includes(value) ? value : "ring";
+    }
+    set shape(value) { this.setAttribute("shape", value); }
+    get color() { return this.getAttribute("color") || "white"; }
+    set color(value) { this.setAttribute("color", value); }
+    get intensity() { return shapeNumber(this, "intensity", DEFAULT_INTENSITY, 1, 16); }
+    set intensity(value) { this.setAttribute("intensity", normalizeIntensity(value)); }
+    get value() { return shapeNumber(this, "value", 100, 0, 100); }
+    set value(value) { this.setAttribute("value", value); }
+    get thickness() { return shapeNumber(this, "thickness", 4, 0.5, 1000); }
+    set thickness(value) { this.setAttribute("thickness", value); }
+    get radius() { return shapeNumber(this, "radius", 12, 0, 10000); }
+    set radius(value) { this.setAttribute("radius", value); }
+    get points() { return this.getAttribute("points") || ""; }
+    set points(value) { this.setAttribute("points", value); }
+    get mode() { return this.dataset.brightpixelsMode || null; }
+
+    _requestRender() {
+      if (!this.isConnected || this._frame) return;
+      this._frame = requestAnimationFrame(() => {
+        this._frame = 0;
+        this._render();
+      });
+    }
+
+    _svg(width, height, color) {
+      // Escape the resolved CSS color before placing it in XML attributes.
+      const safeColor = color.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
+      })[c]);
+      const stroke = Math.min(this.thickness, Math.min(width, height) / (this.shape === "line" ? 1 : 2));
+      const inset = stroke / 2;
+      const fraction = this.value / 100;
+      let body;
+      if (this.shape === "dot") {
+        body = `<ellipse cx="${width / 2}" cy="${height / 2}" rx="${width / 2}" ry="${height / 2}" fill="${safeColor}"/>`;
+      } else if (this.shape === "line") {
+        const pairs = this.points.trim().split(/\s+/).map((pair) => pair.split(","));
+        const valid = pairs.length >= 2 && pairs.every((pair) =>
+          pair.length === 2 && pair.every((n) => n.trim() !== "" && Number.isFinite(Number(n)))
+        );
+        const coordinates = valid ? pairs.map((pair) => pair.map(Number)) : [[0, 50], [100, 50]];
+        const points = coordinates.map(([x, y]) => {
+          const px = inset + Math.min(100, Math.max(0, x)) / 100 * (width - stroke);
+          const py = inset + Math.min(100, Math.max(0, y)) / 100 * (height - stroke);
+          return `${px},${py}`;
+        }).join(" ");
+        body = `<polyline points="${points}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      } else if (this.shape === "bar") {
+        const filledWidth = width * fraction;
+        body = `<rect width="${filledWidth}" height="${height}" rx="${Math.min(this.radius, height / 2, filledWidth / 2)}" fill="${safeColor}"/>`;
+      } else if (this.shape === "outline") {
+        body = `<rect x="${inset}" y="${inset}" width="${width - stroke}" height="${height - stroke}" rx="${this.radius}" fill="none" stroke="${safeColor}" stroke-width="${stroke}"/>`;
+      } else {
+        const radius = (Math.min(width, height) - stroke) / 2;
+        const circumference = 2 * Math.PI * radius;
+        body = fraction === 0 ? "" : `<circle cx="${width / 2}" cy="${height / 2}" r="${radius}" fill="none" stroke="${safeColor}" stroke-width="${stroke}" stroke-dasharray="${fraction * circumference} ${circumference}" transform="rotate(-90 ${width / 2} ${height / 2})"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+    }
+
+    _render() {
+      const { width, height } = this.getBoundingClientRect();
+      if (!width || !height) return;
+      this._bright.intensity = this.intensity;
+      this._probe.style.color = "white";
+      this._probe.style.color = this.color;
+      const svg = this._svg(width, height, getComputedStyle(this._probe).color);
+      const source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      if (this._image.getAttribute("src") !== source) this._image.src = source;
+    }
+  };
+}
+
 export function defineBrightpixels() {
   if (!hasDOM()) return null;
 
@@ -976,6 +1117,10 @@ export function defineBrightpixels() {
 
   if (!customElements.get(IMAGE_TAG_NAME)) {
     customElements.define(IMAGE_TAG_NAME, makeImageElementClass());
+  }
+
+  if (!customElements.get("bright-shape")) {
+    customElements.define("bright-shape", makeShapeElementClass());
   }
 
   return BrightTextElement;

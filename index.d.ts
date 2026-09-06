@@ -19,6 +19,21 @@ export interface BrightImageElement extends HTMLElement {
 
 export declare const version: "0.2.0";
 
+export interface BrightShapeElement extends HTMLElement {
+  shape: "ring" | "outline" | "bar" | "dot" | "line";
+  color: string;
+  intensity: number;
+  /** Percent filled, 0–100; defaults to 100. Applies to rings and bars. */
+  value: number;
+  /** Ring/outline/line stroke width in CSS pixels; defaults to 4. */
+  thickness: number;
+  /** Outline/bar corner radius in CSS pixels; defaults to 12. */
+  radius: number;
+  /** Line points as space-separated x,y pairs in 0–100 coordinates. Empty means a horizontal line. */
+  points: string;
+  readonly mode: "hdr" | "fallback" | null;
+}
+
 export declare function defineBrightpixels(): CustomElementConstructor | null;
 
 export declare function brighten(
@@ -35,5 +50,6 @@ declare global {
   interface HTMLElementTagNameMap {
     "bright-text": BrightTextElement;
     "bright-image": BrightImageElement;
+    "bright-shape": BrightShapeElement;
   }
 }

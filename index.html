@@ -245,6 +245,30 @@
         font-size: clamp(0.75rem, 2vw, 1rem);
       }
 
+      .shape-demos {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2rem;
+        margin: 2rem 0;
+      }
+
+      .shape-demos figure { margin: 0; }
+      .shape-demos figcaption { margin-top: 1rem; font-size: 0.85rem; }
+      .shape-demos button {
+        border: 0;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #202025;
+        color: #eee;
+        font: inherit;
+        cursor: pointer;
+      }
+      .shape-demos button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+      .progress-control { display: grid; gap: 0.75rem; max-width: 24rem; margin: 2rem 0; }
+      .progress-control input { width: 100%; accent-color: #ff5900; }
+      #shape-progress { max-width: 100%; }
+
       pre {
         margin: 0;
         padding: 1.1rem;
@@ -293,6 +317,7 @@
         <a href="#example">Text</a>
         <a href="#images">Images</a>
         <a href="#color">Color</a>
+        <a href="#shapes">Shapes</a>
         <a href="https://github.com/echohtp/brightpixels#readme">Docs</a>
       </nav>
     </header>
@@ -443,6 +468,62 @@
         </div>
       </section>
 
+      <section class="shell" id="shapes" aria-labelledby="shapes-heading">
+        <p class="section-label">Native shapes</p>
+        <h2 id="shapes-heading">Give the edges light.</h2>
+        <p class="caption">Rings, outlines, progress bars, dots, and lines. No extra libraries.
+          Move the slider to fill the ring and bar; click the outlined button to toggle its brightness.</p>
+        <div class="shape-demos">
+          <figure>
+            <bright-shape id="shape-ring" shape="ring" color="color(display-p3 1 0.35 0)"
+              value="65" intensity="4" thickness="6" aria-hidden="true"><span id="shape-percent">65%</span></bright-shape>
+            <figcaption>Progress ring</figcaption>
+          </figure>
+          <figure>
+            <bright-shape id="shape-outline" shape="outline" color="color(display-p3 1 0.35 0)"
+              intensity="4" thickness="2" radius="16">
+              <button id="shape-toggle" type="button" aria-pressed="true">HDR outline</button>
+            </bright-shape>
+            <figcaption>Interactive content, bright outline</figcaption>
+          </figure>
+          <figure>
+            <bright-shape id="shape-progress" shape="bar" value="65" color="#26df8b" intensity="4"
+              role="progressbar" aria-label="Example progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"></bright-shape>
+            <figcaption>Progress bar</figcaption>
+          </figure>
+          <figure>
+            <span style="display:flex;align-items:center;gap:0.75rem">
+              <bright-shape shape="dot" color="#26df8b" intensity="4" aria-hidden="true"></bright-shape>
+              Available
+            </span>
+            <figcaption>Status dot</figcaption>
+          </figure>
+          <figure>
+            <bright-shape shape="line" thickness="2" color="color(display-p3 1 0.35 0)"
+              intensity="4" aria-hidden="true"></bright-shape>
+            <figcaption>Line / divider</figcaption>
+          </figure>
+          <figure>
+            <bright-shape shape="line" points="0,80 25,55 50,65 75,30 100,10"
+              style="width:12rem;height:4rem" color="#26df8b" intensity="4"
+              role="img" aria-label="Example activity trend increasing overall"></bright-shape>
+            <figcaption>Native SVG sparkline</figcaption>
+          </figure>
+        </div>
+        <label class="progress-control" for="shape-value">Progress
+          <input id="shape-value" type="range" min="0" max="100" value="65" />
+        </label>
+        <pre><code>&lt;bright-shape shape="ring" value="65" color="#ff5900" intensity="4"&gt;&lt;/bright-shape&gt;
+&lt;bright-shape shape="outline" color="#ff5900" intensity="4"&gt;
+  &lt;button&gt;Selected action&lt;/button&gt;
+&lt;/bright-shape&gt;
+&lt;bright-shape shape="bar" value="65" color="#26df8b" intensity="4"&gt;&lt;/bright-shape&gt;</code></pre>
+        <pre style="margin-top:1rem"><code>&lt;bright-shape shape="dot" color="#26df8b" intensity="4"&gt;&lt;/bright-shape&gt;
+&lt;bright-shape shape="line" thickness="2" intensity="4"&gt;&lt;/bright-shape&gt;
+&lt;bright-shape shape="line" points="0,80 25,55 50,65 75,30 100,10"
+  style="width:12rem;height:4rem" color="#26df8b" intensity="4"&gt;&lt;/bright-shape&gt;</code></pre>
+      </section>
+
       <section class="shell">
         <p class="section-label">HTML usage</p>
         <div class="code-grid">
@@ -461,5 +542,22 @@
       <span>Brightpixels · MIT License</span>
       <span>Best viewed on an HDR display.</span>
     </footer>
+    <script type="module">
+      const ring = document.querySelector("#shape-ring");
+      const bar = document.querySelector("#shape-progress");
+      document.querySelector("#shape-value").addEventListener("input", (event) => {
+        const value = Number(event.target.value);
+        ring.value = bar.value = value;
+        bar.setAttribute("aria-valuenow", String(value));
+        document.querySelector("#shape-percent").textContent = `${value}%`;
+      });
+      document.querySelector("#shape-toggle").addEventListener("click", (event) => {
+        const outline = document.querySelector("#shape-outline");
+        const enabled = outline.intensity === 1;
+        outline.intensity = enabled ? 4 : 1;
+        event.currentTarget.setAttribute("aria-pressed", String(enabled));
+        event.currentTarget.textContent = enabled ? "HDR outline" : "Standard outline";
+      });
+    </script>
   </body>
 </html>

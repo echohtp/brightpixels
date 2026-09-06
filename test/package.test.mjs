@@ -127,6 +127,43 @@ test("registers the text and image custom elements in a browser", async () => {
     const browserModule = await import(`../index.js?browser-test=${Date.now()}`);
     assert.equal(typeof registry.get("bright-text"), "function");
     assert.equal(typeof registry.get("bright-image"), "function");
+    assert.equal(typeof registry.get("bright-shape"), "function");
+
+    const shapeState = Object.create(registry.get("bright-shape").prototype);
+    shapeState.attributes = new Map();
+    assert.equal(shapeState.shape, "ring");
+    assert.equal(shapeState.value, 100);
+    shapeState.value = 0;
+    assert.doesNotMatch(shapeState._svg(100, 100, "red"), /<circle/);
+    shapeState.value = 150;
+    assert.equal(shapeState.value, 100);
+    shapeState.value = -10;
+    assert.equal(shapeState.value, 0);
+    shapeState.value = "invalid";
+    assert.equal(shapeState.value, 100);
+    shapeState.shape = "bar";
+    shapeState.value = 25;
+    assert.match(shapeState._svg(200, 20, "red"), /<rect width="50" height="20"/);
+    shapeState.shape = "outline";
+    shapeState.thickness = 1000;
+    assert.match(shapeState._svg(100, 20, "red"), /stroke-width="10"/);
+    assert.doesNotMatch(shapeState._svg(100, 20, '\"><script>bad</script>'), /<script>/);
+    shapeState.shape = "dot";
+    assert.match(shapeState._svg(40, 20, "red"), /<ellipse cx="20" cy="10" rx="20" ry="10"/);
+    shapeState.shape = "line";
+    shapeState.thickness = 4;
+    assert.match(shapeState._svg(100, 20, "red"), /points="2,10 98,10"/);
+    shapeState.points = "0,100 50,50 100,0";
+    assert.match(shapeState._svg(100, 20, "red"), /points="2,18 50,10 98,2"/);
+    shapeState.points = "-50,200 200,-50";
+    assert.match(shapeState._svg(100, 20, "red"), /points="2,18 98,2"/);
+    for (const invalid of ["0,0", "0,0 100,", "0,0 NaN,5", "0,0 Infinity,5", '0,0 \"><script>,5']) {
+      shapeState.points = invalid;
+      assert.match(shapeState._svg(100, 20, "red"), /points="2,10 98,10"/);
+    }
+    shapeState.points = "";
+    shapeState.thickness = 1000;
+    assert.match(shapeState._svg(100, 4, "red"), /points="2,2 98,2".*stroke-width="4"/);
 
     const heading = new FakeElement("h1");
     heading.append(new FakeElement("span"));

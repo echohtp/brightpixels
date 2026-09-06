@@ -157,6 +157,54 @@ Images hosted on another origin need CORS permission to be read by the renderer:
 
 The image server must send an appropriate `Access-Control-Allow-Origin` header. Same-origin images need no CORS configuration. If the original image loads but cannot be read by the canvas, it remains visible as the fallback.
 
+## Shapes
+
+`<bright-shape>` draws native SVG shapes through the existing HDR image renderer.
+No charting, animation, or other third-party library is needed.
+
+```html
+<bright-shape shape="ring" color="#ff5900" intensity="4" aria-hidden="true"></bright-shape>
+
+<bright-shape shape="outline" color="color(display-p3 1 0.35 0)" intensity="4">
+  <button>Selected action</button>
+</bright-shape>
+
+<bright-shape shape="bar" value="65" color="#26df8b" intensity="4"
+  role="progressbar" aria-label="Upload" aria-valuemin="0" aria-valuemax="100"
+  aria-valuenow="65"></bright-shape>
+```
+
+Set `value` from 0–100 for a partial ring or progress bar; omit it for a full shape.
+Update the `.value` property from your app, and keep `aria-valuenow` synchronized
+when using progress semantics. Decorative shapes can use `aria-hidden="true"`.
+Outlines leave their HTML children interactive and at normal brightness.
+
+Use CSS `width` and `height` for dimensions, `thickness` for ring/outline/line stroke
+width (default 4 CSS pixels), and `radius` for outline/bar corners (default 12).
+Without HDR, the same colored SVG remains visible. Shapes update on demand with
+no continuous animation loop. Content Security Policy must allow `data:` images.
+
+### Dots and lines
+
+```html
+<!-- A status light; unequal CSS width/height makes an ellipse. -->
+<bright-shape shape="dot" color="#26df8b" intensity="4" aria-hidden="true"></bright-shape>
+
+<!-- A horizontal divider or underline. -->
+<bright-shape shape="line" thickness="2" color="#ff5900" intensity="4" aria-hidden="true"></bright-shape>
+
+<!-- A sparkline without a charting library. -->
+<bright-shape shape="line" points="0,80 25,55 50,65 75,30 100,10"
+  style="width:12rem;height:4rem" color="#26df8b" intensity="4"
+  role="img" aria-label="Activity increased overall"></bright-shape>
+```
+
+`points` uses space-separated `x,y` pairs in a 0–100 coordinate system, with
+`0,0` at the top left. Coordinates are clamped to that range, and stroke padding
+keeps round caps inside the element. Empty or invalid points produce a horizontal
+line. Update `.points` to change a series. These are visual primitives, so provide
+labels or accompanying data for meaningful charts and status indicators.
+
 ## Wide-gamut color experiment
 
 The [color demo](https://echohtp.github.io/brightpixels/#color) compares sRGB orange,
@@ -217,7 +265,7 @@ document.addEventListener("brightpixelsready", (event) => {
 });
 ```
 
-`kind` is `"text"` or `"image"`; `mode` is `"hdr"` or `"fallback"`. The `"hdr"` value indicates that the WebGPU renderer initialized. It does not measure the display's brightness.
+`kind` is `"text"`, `"image"`, or `"shape"`; `mode` is `"hdr"` or `"fallback"`. The `"hdr"` value indicates that the WebGPU renderer initialized. It does not measure the display's brightness.
 
 ## Rendering requirements
 

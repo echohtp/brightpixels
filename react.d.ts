@@ -2,12 +2,13 @@ import type * as React from "react";
 import type {
   BrightImageElement,
   BrightTextElement,
+  BrightShapeElement,
 } from "./index.js";
 
 export * from "./index.js";
 
 export interface BrightpixelsReadyDetail {
-  kind: "text" | "image";
+  kind: "text" | "image" | "shape";
   mode: "hdr" | "fallback";
   version: string;
 }
@@ -34,6 +35,15 @@ declare module "react" {
     interface IntrinsicElements {
       "bright-text": BrightTextProps;
       "bright-image": BrightImageProps;
+      "bright-shape": React.DetailedHTMLProps<React.HTMLAttributes<BrightShapeElement>, BrightShapeElement>
+        & BrightpixelsProps & {
+          shape?: "ring" | "outline" | "bar" | "dot" | "line";
+          color?: string;
+          value?: number | string;
+          thickness?: number | string;
+          radius?: number | string;
+          points?: string;
+        };
     }
   }
 }
