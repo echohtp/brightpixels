@@ -12,6 +12,18 @@ The images are repository demo assets and are excluded from the npm runtime pack
 
 ## Generation
 
+### Wide-gamut comparison
+
+`wide-gamut-comparison.png` is a deterministic 1500 × 700, 16-bit BT.2020/PQ PNG.
+Regenerate with `node assets/examples/color-comparison.mjs`. The first two swatches
+use RGB coordinates (1, 0.35, 0) in sRGB and Display P3 respectively, converted to
+linear BT.2020 at 203-nit reference white. The third multiplies the P3 linear
+signal by four before PQ encoding. PNG cICP signals BT.2020, PQ, RGB, full range.
+It is displayed directly, without the Brightpixels image wrapper, to preserve
+the encoded color and avoid applying the highlight boost twice.
+
+### Generated photographs
+
 Created with OpenAI image generation in generation mode, one image per prompt. No post-processing was applied.
 
 ### ocean.png

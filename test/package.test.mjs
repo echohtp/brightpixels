@@ -17,7 +17,7 @@ const demo = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const reactTypes = readFileSync(new URL("../react.d.ts", import.meta.url), "utf8");
 
 test("exports the minimal API", () => {
-  assert.equal(version, "0.1.0");
+  assert.equal(version, "0.2.0");
   assert.equal(typeof defineBrightpixels, "function");
   assert.equal(typeof brighten, "function");
   assert.equal(typeof brightenImages, "function");
@@ -100,6 +100,10 @@ test("registers the text and image custom elements in a browser", async () => {
       this.attributes.set(name, String(value));
     }
 
+    getAttribute(name) {
+      return this.attributes.get(name) ?? null;
+    }
+
     hasAttribute(name) {
       return this.attributes.has(name);
     }
@@ -141,6 +145,45 @@ test("registers the text and image custom elements in a browser", async () => {
     assert.equal(imageWrapper.intensity, 8);
     assert.equal(imageWrapper.firstChild, image);
     assert.equal(figure.firstChild, imageWrapper);
+
+    const [colored] = browserModule.brighten(heading, { color: "#ff5900", intensity: 4 });
+    assert.equal(colored, textWrapper);
+    assert.equal(colored.color, "#ff5900");
+    const [boosted] = browserModule.brightenImages(image, { boost: "all", intensity: 4 });
+    assert.equal(boosted, imageWrapper);
+    assert.equal(boosted.boost, "all");
+
+    const imagePrototype = registry.get("bright-image").prototype;
+    const imageState = Object.create(imagePrototype);
+    imageState.attributes = new Map();
+    assert.equal(imageState.boost, "highlights");
+    imageState.boost = "all";
+    assert.equal(imageState.boost, "all");
+    imageState.boost = "invalid";
+    assert.equal(imageState.boost, "highlights");
+
+    const textState = Object.create(registry.get("bright-text").prototype);
+    textState.attributes = new Map();
+    assert.equal(textState.color, "white");
+    textState.intensity = 4;
+    textState._colorSpace = "display-p3";
+    textState._glyphs = {};
+    textState._colorContext = {
+      clearRect() {}, fillRect() {},
+      getImageData: () => ({ data: new Uint8ClampedArray([255, 128, 0, 128]) }),
+    };
+    const oldComputedStyle = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = () => ({ color: "color(display-p3 1 0.5 0 / 0.5)" });
+    try {
+      const rgba = textState._textColor();
+      assert.ok(Math.abs(rgba[0] - 4 * 128 / 255) < 0.00001);
+      assert.ok(Math.abs(rgba[1] - 0.2158605 * 4 * 128 / 255) < 0.00001);
+      assert.equal(rgba[2], 0);
+      assert.ok(Math.abs(rgba[3] - 128 / 255) < 0.00001);
+    } finally {
+      if (oldComputedStyle === undefined) delete globalThis.getComputedStyle;
+      else globalThis.getComputedStyle = oldComputedStyle;
+    }
   } finally {
     for (const [name, value] of Object.entries(previous)) {
       if (value === undefined) delete globalThis[name];

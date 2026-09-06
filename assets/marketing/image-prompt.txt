@@ -1,0 +1,11 @@
+Use case: ads-marketing
+Asset type: polished square LinkedIn marketing image for BrightPixels, 1536x1536.
+Primary request: An arresting minimalist launch graphic for BrightPixels, a JavaScript library for HDR text and image highlights on compatible displays.
+Scene: near-black background with a refined macro photographic field of tiny display pixels across the lower half. Most pixels are dim charcoal; a compact cluster becomes intensely luminous white, with restrained optical bloom and subtle spectral fringes. Beautiful physical screen texture, crisp intentional grid, not sci-fi. The central luminous cluster evokes a small burst of light breaking beyond ordinary white. This is a conceptual illustration of brightness, not an actual HDR comparison.
+Composition: generous margins, premium editorial typography in the upper half. Small brand name at top left, large headline below, short subtitle beneath. Lower half devoted to the luminous pixel artwork. Legible on a phone. Restrained monochrome palette with very subtle warm light at the luminous core.
+Text verbatim:
+"BrightPixels"
+"Beyond ordinary white."
+"HDR highlights for the web."
+Small readable footer: "Compatible display + browser required"
+Constraints: Render only those four text strings. Exact spelling, beautiful clean sans-serif type, precise hierarchy. No screenshots, no charts, no fake before/after, no extra logos, no watermarks. Do not imply guaranteed brightness on every device. Finished professional campaign art.

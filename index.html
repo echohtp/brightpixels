@@ -226,6 +226,25 @@
         gap: 1rem;
       }
 
+      .color-comparison {
+        margin: 2rem 0 1rem;
+      }
+
+      .color-comparison img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .color-labels {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        text-align: center;
+        gap: 0.5rem;
+        color: #d2d2d5;
+        font-size: clamp(0.75rem, 2vw, 1rem);
+      }
+
       pre {
         margin: 0;
         padding: 1.1rem;
@@ -273,6 +292,7 @@
       <nav class="links" aria-label="Project links">
         <a href="#example">Text</a>
         <a href="#images">Images</a>
+        <a href="#color">Color</a>
         <a href="https://github.com/echohtp/brightpixels#readme">Docs</a>
       </nav>
     </header>
@@ -286,7 +306,7 @@
           Wrap content, set its intensity, and let compatible screens reveal
           the extra light.
         </p>
-        <pre class="install"><code>npm install github:echohtp/brightpixels</code></pre>
+        <pre class="install"><code>npm install brightpixels</code></pre>
       </section>
 
       <section class="shell" id="example">
@@ -368,6 +388,57 @@
               </figure>
             </div>
             <p class="caption">Streetlights and their reflections stand out against the darker buildings and pavement.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell" id="color" aria-labelledby="color-heading">
+        <p class="section-label">Color experiment</p>
+        <h2 id="color-heading">More color. More light.</h2>
+        <p class="caption">
+          Wide gamut expands the palette. HDR adds light. Compare the same orange
+          coordinates in sRGB and Display P3, then see the P3 color with four times
+          the encoded light level.
+        </p>
+        <figure class="color-comparison">
+          <img src="./assets/examples/wide-gamut-comparison.png"
+               alt="Three orange swatches: standard sRGB on the left, wider-gamut Display P3 in the center, and Display P3 with four times the encoded light level on the right."
+               width="1500" height="700" loading="lazy" decoding="async" />
+          <figcaption class="color-labels">
+            <span>sRGB</span><span>Display P3</span><span>Display P3 + HDR</span>
+          </figcaption>
+        </figure>
+        <p class="caption">
+          This image contains real wide-gamut and HDR data. The visible difference
+          depends on your display, browser, and available brightness; it may be
+          reduced on standard-range screens.
+          <a href="./assets/examples/wide-gamut-comparison.png" download>Download the HDR image</a>.
+        </p>
+        <div class="image-examples">
+          <article class="image-example">
+            <h3>Brighten an icon or shape</h3>
+            <div class="comparison">
+              <figure>
+                <figcaption>Original SVG image</figcaption>
+                <img src="./assets/examples/orange.svg" alt="Orange rounded rectangle" width="480" height="240" />
+              </figure>
+              <figure>
+                <figcaption>All colors · intensity 4</figcaption>
+                <bright-image boost="all" intensity="4">
+                  <img src="./assets/examples/orange.svg" alt="Orange rounded rectangle with brighter color" width="480" height="240" />
+                </bright-image>
+              </figure>
+            </div>
+            <pre><code>&lt;bright-image boost="all" intensity="4"&gt;
+  &lt;img src="./icon.svg" alt="Orange icon" /&gt;
+&lt;/bright-image&gt;</code></pre>
+          </article>
+          <article class="image-example">
+            <h3>Brighten colored text</h3>
+            <p style="font-size:clamp(2rem, 6vw, 4rem)"><bright-text color="color(display-p3 1 0.35 0)" intensity="4">Orange, brighter.</bright-text></p>
+            <pre><code>&lt;bright-text color="color(display-p3 1 0.35 0)" intensity="4"&gt;
+  Orange, brighter.
+&lt;/bright-text&gt;</code></pre>
           </article>
         </div>
       </section>

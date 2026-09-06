@@ -1,4 +1,4 @@
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -9,13 +9,13 @@ const pipelineCache = new WeakMap();
 const FRAGMENTS = {
   text: `
     let mask = pow(textureSample(sourceTexture, sourceSampler, input.uv).a, 0.82);
-    return vec4f(vec3f(settings.x * mask), mask);
+    return vec4f(settings.rgb * mask, settings.a * mask);
   `,
   image: `
     let pixel = textureSample(sourceTexture, sourceSampler, input.uv);
-    let luminance = dot(pixel.rgb, vec3f(0.2126, 0.7152, 0.0722));
+    let luminance = dot(pixel.rgb, select(vec3f(0.2126, 0.7152, 0.0722), vec3f(0.228975, 0.691739, 0.079287), settings.z > 0.5));
     let highlight = smoothstep(0.55, 1.0, luminance);
-    let multiplier = mix(1.0, settings.x, highlight * highlight);
+    let multiplier = select(mix(1.0, settings.x, highlight * highlight), settings.x, settings.y > 0.5);
     return vec4f(pixel.rgb * multiplier * pixel.a, pixel.a);
   `,
 };
@@ -317,7 +317,7 @@ function makeTextElementClass() {
 
   return class BrightTextElement extends HTMLElement {
     static get observedAttributes() {
-      return ["intensity"];
+      return ["intensity", "color"];
     }
 
     constructor() {
@@ -328,6 +328,10 @@ function makeTextElementClass() {
       this._canvas = this.shadowRoot.querySelector("canvas");
       this._mask = document.createElement("canvas");
       this._maskContext = this._mask.getContext("2d");
+      const colorCanvas = document.createElement("canvas");
+      colorCanvas.width = colorCanvas.height = 1;
+      this._colorContext = colorCanvas.getContext("2d", { colorSpace: "display-p3", willReadFrequently: true });
+      this._colorSpace = this._colorContext?.getContextAttributes?.().colorSpace || "srgb";
       this._gpu = null;
       this._maskDirty = true;
       this._animationFrame = 0;
@@ -377,7 +381,10 @@ function makeTextElementClass() {
     }
 
     attributeChangedCallback(name) {
-      if (name !== "intensity") return;
+      if (name === "color") {
+        this._glyphs.style.color = "";
+        this._glyphs.style.color = this.color;
+      } else if (name !== "intensity") return;
       this._requestRender();
     }
 
@@ -389,6 +396,31 @@ function makeTextElementClass() {
 
     set intensity(value) {
       this.setAttribute("intensity", String(normalizeIntensity(value)));
+    }
+
+    get color() {
+      return this.getAttribute("color") || "white";
+    }
+
+    set color(value) {
+      this.setAttribute("color", String(value));
+    }
+
+    _textColor() {
+      const context = this._colorContext;
+      if (!context) return new Float32Array([this.intensity, this.intensity, this.intensity, 1]);
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = "white";
+      context.fillStyle = getComputedStyle(this._glyphs).color;
+      context.fillRect(0, 0, 1, 1);
+      const rgba = context.getImageData(0, 0, 1, 1, { colorSpace: this._colorSpace }).data;
+      const alpha = rgba[3] / 255;
+      const rgb = Array.from(rgba.subarray(0, 3), (byte) => {
+        const v = byte / 255;
+        const linear = v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        return linear * this.intensity * alpha;
+      });
+      return new Float32Array([...rgb, alpha]);
     }
 
     get mode() {
@@ -489,7 +521,7 @@ function makeTextElementClass() {
         this._gpu.device.queue.writeBuffer(
           this._gpu.uniformBuffer,
           0,
-          new Float32Array([this.intensity, 0, 0, 0])
+          this._textColor()
         );
         const encoder = this._gpu.device.createCommandEncoder();
         const pass = encoder.beginRenderPass({
@@ -535,6 +567,7 @@ function makeTextElementClass() {
         context.configure({
           device,
           format: "rgba16float",
+          colorSpace: this._colorSpace,
           alphaMode: "premultiplied",
           toneMapping: { mode: "extended" },
         });
@@ -649,7 +682,7 @@ function makeImageElementClass() {
 
   return class BrightImageElement extends HTMLElement {
     static get observedAttributes() {
-      return ["intensity"];
+      return ["intensity", "boost"];
     }
 
     constructor() {
@@ -657,7 +690,8 @@ function makeImageElementClass() {
       this.attachShadow({ mode: "open" }).append(template.content.cloneNode(true));
       this._canvas = this.shadowRoot.querySelector("canvas");
       this._source = document.createElement("canvas");
-      this._sourceContext = this._source.getContext("2d");
+      this._sourceContext = this._source.getContext("2d", { colorSpace: "display-p3" });
+      this._colorSpace = this._sourceContext?.getContextAttributes?.().colorSpace || "srgb";
       this._image = null;
       this._gpu = null;
       this._sourceDirty = true;
@@ -717,6 +751,14 @@ function makeImageElementClass() {
 
     get mode() {
       return this.dataset.brightpixelsMode || null;
+    }
+
+    get boost() {
+      return this.getAttribute("boost") === "all" ? "all" : "highlights";
+    }
+
+    set boost(value) {
+      this.setAttribute("boost", value === "all" ? "all" : "highlights");
     }
 
     get image() {
@@ -794,7 +836,7 @@ function makeImageElementClass() {
       });
       this._gpu.device.queue.copyExternalImageToTexture(
         { source: this._source },
-        { texture: this._gpu.sourceTexture },
+        { texture: this._gpu.sourceTexture, colorSpace: this._colorSpace },
         [width, height]
       );
       this._gpu.bindGroup = this._gpu.device.createBindGroup({
@@ -820,7 +862,7 @@ function makeImageElementClass() {
         this._gpu.device.queue.writeBuffer(
           this._gpu.uniformBuffer,
           0,
-          new Float32Array([this.intensity, 0, 0, 0])
+          new Float32Array([this.intensity, this.boost === "all" ? 1 : 0, this._colorSpace === "display-p3" ? 1 : 0, 0])
         );
         const encoder = this._gpu.device.createCommandEncoder();
         const pass = encoder.beginRenderPass({
@@ -866,6 +908,7 @@ function makeImageElementClass() {
         context.configure({
           device,
           format: "rgba16float",
+          colorSpace: this._colorSpace,
           alphaMode: "premultiplied",
           toneMapping: { mode: "extended" },
         });
@@ -962,6 +1005,7 @@ export function brighten(targets, settings = {}) {
       }
 
       if (settings.intensity !== undefined) bright.intensity = settings.intensity;
+      if (settings.color !== undefined) bright.color = settings.color;
       return bright;
     });
 }
@@ -992,6 +1036,7 @@ export function brightenImages(targets, settings = {}) {
     .filter(Boolean)
     .map((bright) => {
       if (settings.intensity !== undefined) bright.intensity = settings.intensity;
+      if (settings.boost !== undefined) bright.boost = settings.boost;
       return bright;
     });
 }

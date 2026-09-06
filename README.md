@@ -6,10 +6,10 @@ JavaScript web components for HDR text and image highlights. Brightpixels uses a
 
 ## Installation
 
-Install from the GitHub repository:
+Install the published npm package:
 
 ```bash
-npm install github:echohtp/brightpixels
+npm install brightpixels
 ```
 
 Import the package once to register `<bright-text>` and `<bright-image>`:
@@ -32,6 +32,17 @@ Wrap a short text fragment:
 <h1><bright-text intensity="12">HDR text</bright-text></h1>
 <p>An example of <bright-text intensity="8">inline emphasis</bright-text>.</p>
 ```
+
+New in 0.2.0: add a CSS `color` to brighten colored text, including Display P3:
+
+```html
+<bright-text color="color(display-p3 1 0.35 0)" intensity="4">Orange, brighter.</bright-text>
+```
+
+Or use `brighten(".headline", { color: "#ff5900", intensity: 4 })`.
+Color defaults to white. `intensity` multiplies linear light, preserving the color
+ratios before the display's tone mapping. P3 output requires compatible browser
+and display support. Without HDR, text keeps its chosen color at normal brightness.
 
 Apply typography with CSS:
 
@@ -66,6 +77,19 @@ The previews below link to running comparisons that use the same source image wi
 | `intensity="6"` | `intensity="8"` | `intensity="12"` |
 
 ### HTML wrapper
+
+To brighten every color in an image, icon, or illustration, use `boost="all"`:
+
+```html
+<bright-image boost="all" intensity="4">
+  <img src="./icon.svg" alt="Orange icon" />
+</bright-image>
+```
+
+Or use `brightenImages(".icon", { boost: "all", intensity: 4 })`.
+The default `boost="highlights"` preserves the existing highlight-only behavior.
+Image color is preserved in Display P3 where the browser supports it. This wraps
+an `<img>`, including SVG image files; it does not render arbitrary HTML children.
 
 Use an image URL from your application. The sample files are in this repository's `assets/examples/` directory.
 
@@ -132,6 +156,13 @@ Images hosted on another origin need CORS permission to be read by the renderer:
 ```
 
 The image server must send an appropriate `Access-Control-Allow-Origin` header. Same-origin images need no CORS configuration. If the original image loads but cannot be read by the canvas, it remains visible as the fallback.
+
+## Wide-gamut color experiment
+
+The [color demo](https://echohtp.github.io/brightpixels/#color) compares sRGB orange,
+Display P3 orange, and the P3 color at four times the encoded light level. This is
+a standalone 16-bit BT.2020/PQ PNG displayed directly by the browser, separate from the web components. Display and browser support determine the
+visible result. Regenerate it with `node assets/examples/color-comparison.mjs`.
 
 ## React
 

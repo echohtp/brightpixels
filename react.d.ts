@@ -22,12 +22,12 @@ interface BrightpixelsProps {
 type BrightTextProps = React.DetailedHTMLProps<
   React.HTMLAttributes<BrightTextElement>,
   BrightTextElement
-> & BrightpixelsProps;
+> & BrightpixelsProps & { color?: string };
 
 type BrightImageProps = React.DetailedHTMLProps<
   React.HTMLAttributes<BrightImageElement>,
   BrightImageElement
-> & BrightpixelsProps;
+> & BrightpixelsProps & { boost?: "highlights" | "all" };
 
 declare module "react" {
   namespace JSX {

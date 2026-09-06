@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A tiny dependency-free library that lifts web text and image highlights into HDR.",
   "type": "module",
   "main": "./index.js",
