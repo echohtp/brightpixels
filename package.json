@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "description": "A tiny dependency-free library for HDR text, image highlights, and native shapes.",
   "type": "module",
   "main": "./index.js",
@@ -35,7 +35,9 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test && npm run test:types",
+    "test:types": "tsc -p test/types/tsconfig.json",
+    "test:browser": "playwright test"
   },
   "keywords": [
     "hdr",
@@ -60,5 +62,13 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
   }
 }

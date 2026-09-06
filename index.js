@@ -1,7 +1,49 @@
-const VERSION = "0.3.0";
+const VERSION = "0.5.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
+
+// One native frame request for all components, including one-shot pulses.
+const frameCallbacks = new Map();
+let nextFrameId = 0, nativeFrame = 0, flushingFrames = false;
+function scheduleFrame(callback) {
+  const id = ++nextFrameId;
+  frameCallbacks.set(id, callback);
+  if (!nativeFrame && !flushingFrames) nativeFrame = requestAnimationFrame(flushFrames);
+  return id;
+}
+function cancelFrame(id) {
+  frameCallbacks.delete(id);
+  if (!frameCallbacks.size && nativeFrame) { cancelAnimationFrame(nativeFrame); nativeFrame = 0; }
+}
+function flushFrames(now) {
+  nativeFrame = 0;
+  flushingFrames = true;
+  try {
+    for (const [id, callback] of [...frameCallbacks]) {
+      if (!frameCallbacks.delete(id)) continue;
+      try { callback(now); } catch (error) { queueMicrotask(() => { throw error; }); }
+    }
+  } finally {
+    flushingFrames = false;
+    if (frameCallbacks.size && !nativeFrame) nativeFrame = requestAnimationFrame(flushFrames);
+  }
+}
+
+const configuration = { enabled: true, brightness: 1 };
+const connectedRenderers = new Set();
+export function getBrightpixelsConfig() { return { ...configuration }; }
+export function configureBrightpixels(options = {}) {
+  if (options.enabled !== undefined) configuration.enabled = Boolean(options.enabled);
+  if (options.brightness !== undefined) {
+    const value = Number(options.brightness);
+    if (Number.isFinite(value)) configuration.brightness = Math.min(1, Math.max(0, value));
+  }
+  for (const element of connectedRenderers) element._applyConfig();
+  return getBrightpixelsConfig();
+}
+function effectiveIntensity(value) { return 1 + (value - 1) * configuration.brightness; }
+
 
 let devicePromise;
 const pipelineCache = new WeakMap();
@@ -352,6 +394,8 @@ function makeTextElementClass() {
     }
 
     connectedCallback() {
+      connectedRenderers.add(this);
+      if (!configuration.enabled) this._setMode("fallback");
       this._syncText();
       if (this._resizeObserver) this._resizeObserver.observe(this._frame);
       else window.addEventListener("resize", this._onWindowResize);
@@ -364,7 +408,7 @@ function makeTextElementClass() {
       Promise.resolve(document.fonts?.ready)
         .catch(() => undefined)
         .then(() => {
-          if (!this.isConnected) return;
+          if (!this.isConnected || !configuration.enabled) return;
           this._syncText();
           this._resize();
           return this._initHDR();
@@ -375,7 +419,9 @@ function makeTextElementClass() {
       this._resizeObserver?.disconnect();
       this._textObserver?.disconnect();
       window.removeEventListener("resize", this._onWindowResize);
-      cancelAnimationFrame(this._animationFrame);
+      connectedRenderers.delete(this);
+      cancelFrame(this._animationFrame);
+      this._animationFrame = 0;
       releaseGPU(this._gpu);
       this._gpu = null;
     }
@@ -384,7 +430,7 @@ function makeTextElementClass() {
       if (name === "color") {
         this._glyphs.style.color = "";
         this._glyphs.style.color = this.color;
-      } else if (name !== "intensity") return;
+      } else if (name !== "intensity" && name !== "boost") return;
       this._requestRender();
     }
 
@@ -408,7 +454,7 @@ function makeTextElementClass() {
 
     _textColor() {
       const context = this._colorContext;
-      if (!context) return new Float32Array([this.intensity, this.intensity, this.intensity, 1]);
+      if (!context) return new Float32Array([effectiveIntensity(this.intensity), effectiveIntensity(this.intensity), effectiveIntensity(this.intensity), 1]);
       context.clearRect(0, 0, 1, 1);
       context.fillStyle = "white";
       context.fillStyle = getComputedStyle(this._glyphs).color;
@@ -418,7 +464,7 @@ function makeTextElementClass() {
       const rgb = Array.from(rgba.subarray(0, 3), (byte) => {
         const v = byte / 255;
         const linear = v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-        return linear * this.intensity * alpha;
+        return linear * effectiveIntensity(this.intensity) * alpha;
       });
       return new Float32Array([...rgb, alpha]);
     }
@@ -450,7 +496,7 @@ function makeTextElementClass() {
 
     _requestRender() {
       if (!this._gpu || this._animationFrame) return;
-      this._animationFrame = requestAnimationFrame(() => this._render());
+      this._animationFrame = scheduleFrame(() => this._render());
     }
 
     _drawMask() {
@@ -486,20 +532,23 @@ function makeTextElementClass() {
       context.fillStyle = "#fff";
       context.fillText(renderedText, width / 2, y);
 
-      this._gpu.maskTexture?.destroy();
-      this._gpu.maskTexture = this._gpu.device.createTexture({
+      const resized = !this._gpu.maskTexture || this._gpu.maskTexture.width !== width || this._gpu.maskTexture.height !== height;
+      if (resized) {
+        this._gpu.maskTexture?.destroy();
+        this._gpu.maskTexture = this._gpu.device.createTexture({
         size: [width, height, 1],
         format: "rgba8unorm",
         usage: GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.COPY_DST |
           GPUTextureUsage.RENDER_ATTACHMENT,
-      });
+        });
+      }
       this._gpu.device.queue.copyExternalImageToTexture(
         { source: this._mask },
         { texture: this._gpu.maskTexture },
         [width, height]
       );
-      this._gpu.bindGroup = this._gpu.device.createBindGroup({
+      if (resized || !this._gpu.bindGroup) this._gpu.bindGroup = this._gpu.device.createBindGroup({
         layout: this._gpu.pipeline.getBindGroupLayout(0),
         entries: [
           { binding: 0, resource: this._gpu.maskTexture.createView() },
@@ -544,7 +593,21 @@ function makeTextElementClass() {
       }
     }
 
+    _applyConfig() {
+      if (!configuration.enabled) {
+        cancelFrame(this._animationFrame);
+        this._animationFrame = 0;
+        releaseGPU(this._gpu);
+        this._gpu = null;
+        this._setMode("fallback");
+      } else {
+        this._requestRender();
+        this._initHDR();
+      }
+    }
+
     _initHDR() {
+      if (!configuration.enabled) { this._setMode("fallback"); return Promise.resolve(); }
       if (this._gpu || this._initializing) return this._initializing;
       this._initializing = this._createHDR().finally(() => {
         this._initializing = null;
@@ -560,7 +623,7 @@ function makeTextElementClass() {
 
       try {
         const device = await getDevice();
-        if (!this.isConnected) return;
+        if (!this.isConnected || !configuration.enabled) return;
         const context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
@@ -573,7 +636,7 @@ function makeTextElementClass() {
         });
 
         const pipeline = await getPipeline(device, "text");
-        if (!this.isConnected) {
+        if (!this.isConnected || !configuration.enabled) {
           context.unconfigure?.();
           return;
         }
@@ -711,6 +774,7 @@ function makeImageElementClass() {
     }
 
     connectedCallback() {
+      connectedRenderers.add(this);
       this._syncImage();
       if (this._resizeObserver) this._resizeObserver.observe(this);
       else window.addEventListener("resize", this._onWindowResize);
@@ -729,7 +793,9 @@ function makeImageElementClass() {
       this._imageObserver?.disconnect();
       window.removeEventListener("resize", this._onWindowResize);
       this._image?.removeEventListener("load", this._onImageLoad);
-      cancelAnimationFrame(this._animationFrame);
+      connectedRenderers.delete(this);
+      cancelFrame(this._animationFrame);
+      this._animationFrame = 0;
       releaseGPU(this._gpu);
       this._gpu = null;
     }
@@ -804,7 +870,7 @@ function makeImageElementClass() {
 
     _requestRender() {
       if (!this._gpu || !this._image || this._animationFrame) return;
-      this._animationFrame = requestAnimationFrame(() => this._render());
+      this._animationFrame = scheduleFrame(() => this._render());
     }
 
     _drawSource() {
@@ -826,20 +892,23 @@ function makeImageElementClass() {
         this.getBoundingClientRect()
       );
 
-      this._gpu.sourceTexture?.destroy();
-      this._gpu.sourceTexture = this._gpu.device.createTexture({
+      const resized = !this._gpu.sourceTexture || this._gpu.sourceTexture.width !== width || this._gpu.sourceTexture.height !== height;
+      if (resized) {
+        this._gpu.sourceTexture?.destroy();
+        this._gpu.sourceTexture = this._gpu.device.createTexture({
         size: [width, height, 1],
         format: "rgba8unorm-srgb",
         usage: GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.COPY_DST |
           GPUTextureUsage.RENDER_ATTACHMENT,
-      });
+        });
+      }
       this._gpu.device.queue.copyExternalImageToTexture(
         { source: this._source },
         { texture: this._gpu.sourceTexture, colorSpace: this._colorSpace },
         [width, height]
       );
-      this._gpu.bindGroup = this._gpu.device.createBindGroup({
+      if (resized || !this._gpu.bindGroup) this._gpu.bindGroup = this._gpu.device.createBindGroup({
         layout: this._gpu.pipeline.getBindGroupLayout(0),
         entries: [
           { binding: 0, resource: this._gpu.sourceTexture.createView() },
@@ -862,7 +931,7 @@ function makeImageElementClass() {
         this._gpu.device.queue.writeBuffer(
           this._gpu.uniformBuffer,
           0,
-          new Float32Array([this.intensity, this.boost === "all" ? 1 : 0, this._colorSpace === "display-p3" ? 1 : 0, 0])
+          new Float32Array([effectiveIntensity(this.intensity), this.boost === "all" ? 1 : 0, this._colorSpace === "display-p3" ? 1 : 0, 0])
         );
         const encoder = this._gpu.device.createCommandEncoder();
         const pass = encoder.beginRenderPass({
@@ -885,7 +954,21 @@ function makeImageElementClass() {
       }
     }
 
+    _applyConfig() {
+      if (!configuration.enabled) {
+        cancelFrame(this._animationFrame);
+        this._animationFrame = 0;
+        releaseGPU(this._gpu);
+        this._gpu = null;
+        this._setMode("fallback");
+      } else {
+        this._requestRender();
+        this._initHDR();
+      }
+    }
+
     _initHDR() {
+      if (!configuration.enabled) { this._setMode("fallback"); return Promise.resolve(); }
       if (this._gpu || this._initializing) return this._initializing;
       this._initializing = this._createHDR().finally(() => {
         this._initializing = null;
@@ -901,7 +984,7 @@ function makeImageElementClass() {
 
       try {
         const device = await getDevice();
-        if (!this.isConnected) return;
+        if (!this.isConnected || !configuration.enabled) return;
         const context = this._canvas.getContext("webgpu");
         if (!context) throw new Error("No WebGPU context");
 
@@ -914,7 +997,7 @@ function makeImageElementClass() {
         });
 
         const pipeline = await getPipeline(device, "image");
-        if (!this.isConnected) {
+        if (!this.isConnected || !configuration.enabled) {
           context.unconfigure?.();
           return;
         }
@@ -971,10 +1054,17 @@ function shapeNumber(element, name, fallback, min, max) {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
+const STATUS_PRESETS = {
+  loading: { shape: "ring", color: "#68bfff", d: "" },
+  success: { shape: "path", color: "#26df8b", d: "M15 50 L40 75 L85 20" },
+  warning: { shape: "path", color: "#ffca36", d: "M50 15 L90 85 L10 85 Z M50 40 L50 58 M50 72 L50 73" },
+  error: { shape: "path", color: "#ff6677", d: "M25 25 L75 75 M75 25 L25 75" },
+};
+
 function makeShapeElementClass() {
   return class BrightShapeElement extends HTMLElement {
     static get observedAttributes() {
-      return ["shape", "color", "intensity", "value", "thickness", "radius", "points", "start-angle", "sweep", "d", "filled", "color-end", "angle", "dash", "linecap", "track", "duration"];
+      return ["shape", "color", "intensity", "value", "thickness", "radius", "points", "start-angle", "sweep", "d", "filled", "color-end", "angle", "dash", "linecap", "track", "duration", "status", "indeterminate"];
     }
 
     constructor() {
@@ -995,6 +1085,12 @@ function makeShapeElementClass() {
           img { display:block; width:100%; height:100%; }
           .track { position:absolute; inset:0; pointer-events:none; }
           .track[hidden] { display:none; }
+          :host([data-loading="ring"]) bright-image { animation:brightpixels-spin 1.2s linear infinite; }
+          :host([data-loading="bar"]) bright-image { animation:brightpixels-slide 1.2s ease-in-out infinite alternate; }
+          :host([data-paused]) bright-image { animation-play-state:paused; }
+          @keyframes brightpixels-spin { to { transform:rotate(360deg); } }
+          @keyframes brightpixels-slide { to { transform:translateX(75%); } }
+          @media (prefers-reduced-motion:reduce) { :host([data-loading]) bright-image { animation:none; } }
           slot { position:relative; display:grid; place-items:center; min-width:0; }
           .color { position:absolute; visibility:hidden; pointer-events:none; }
         </style>
@@ -1011,6 +1107,7 @@ function makeShapeElementClass() {
       this._displayValue = null;
       this._transition = null;
       this._onVisibility = () => {
+        this._syncLoading();
         if (document.hidden) { this.stopPulse(); this._finishTransition(); }
       };
       this._resizeObserver = typeof ResizeObserver === "function"
@@ -1027,6 +1124,7 @@ function makeShapeElementClass() {
 
     connectedCallback() {
       this._displayValue = this.value;
+      this._syncLoading();
       document.addEventListener("visibilitychange", this._onVisibility);
       this._resizeObserver?.observe(this);
       if (!this._resizeObserver) window.addEventListener("resize", this._onResize);
@@ -1040,26 +1138,27 @@ function makeShapeElementClass() {
       this.stopPulse();
       this._transition = null;
       this._displayValue = this.value;
-      cancelAnimationFrame(this._frame);
+      cancelFrame(this._frame);
       this._frame = 0;
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
       if (oldValue === newValue) return;
+      if (["shape", "status", "indeterminate"].includes(name)) this._syncLoading();
       if (name === "intensity") this.stopPulse();
       else if (name === "value") this._transitionToValue();
       else {
-        if (name === "shape" || name === "duration") this._finishTransition();
+        if (["shape", "duration", "status", "indeterminate"].includes(name)) this._finishTransition();
         this._requestRender();
       }
     }
 
     get shape() {
       const value = this.getAttribute("shape");
-      return ["ring", "outline", "bar", "dot", "line", "arc", "rect", "pill", "triangle", "diamond", "star", "polygon", "path"].includes(value) ? value : "ring";
+      return ["ring", "outline", "bar", "dot", "line", "arc", "rect", "pill", "triangle", "diamond", "star", "polygon", "path"].includes(value) ? value : STATUS_PRESETS[this.status]?.shape || "ring";
     }
     set shape(value) { this.setAttribute("shape", value); }
-    get color() { return this.getAttribute("color") || "white"; }
+    get color() { return this.getAttribute("color") || STATUS_PRESETS[this.status]?.color || "white"; }
     set color(value) { this.setAttribute("color", value); }
     get intensity() { return shapeNumber(this, "intensity", DEFAULT_INTENSITY, 1, 16); }
     set intensity(value) { this.setAttribute("intensity", normalizeIntensity(value)); }
@@ -1073,7 +1172,7 @@ function makeShapeElementClass() {
     set startAngle(value) { this.setAttribute("start-angle", value); }
     get sweep() { return shapeNumber(this, "sweep", 270, 0, 360); }
     set sweep(value) { this.setAttribute("sweep", value); }
-    get d() { return this.getAttribute("d") || ""; }
+    get d() { return this.getAttribute("d") || STATUS_PRESETS[this.status]?.d || ""; }
     set d(value) { this.setAttribute("d", value); }
     get filled() { return this.hasAttribute("filled"); }
     set filled(value) { if (value) this.setAttribute("filled", ""); else this.removeAttribute("filled"); }
@@ -1085,6 +1184,22 @@ function makeShapeElementClass() {
     set dash(value) { this.setAttribute("dash", value); }
     get linecap() { return ["butt", "round", "square"].includes(this.getAttribute("linecap")) ? this.getAttribute("linecap") : "round"; }
     set linecap(value) { this.setAttribute("linecap", value); }
+    get status() { const value = this.getAttribute("status"); return Object.hasOwn(STATUS_PRESETS, value) ? value : ""; }
+    set status(value) { if (value) this.setAttribute("status", value); else this.removeAttribute("status"); }
+    get indeterminate() { return this.hasAttribute("indeterminate") || this.status === "loading"; }
+    set indeterminate(value) { if (value) this.setAttribute("indeterminate", ""); else this.removeAttribute("indeterminate"); }
+    setStatus(status, { pulse = false } = {}) {
+      this.stopPulse();
+      this.status = status;
+      if (pulse && this.status && this.status !== "loading") this.pulse();
+    }
+    _syncLoading() {
+      const loading = this.indeterminate && ["ring", "arc", "bar"].includes(this.shape);
+      if (loading) this.dataset.loading = this.shape === "bar" ? "bar" : "ring";
+      else delete this.dataset.loading;
+      if (document.hidden) this.dataset.paused = "";
+      else delete this.dataset.paused;
+    }
     get track() { return this.hasAttribute("track") ? this.getAttribute("track") || "#25252b" : ""; }
     set track(value) { if (value) this.setAttribute("track", value); else this.removeAttribute("track"); }
     get duration() { return shapeNumber(this, "duration", 0, 0, 5000); }
@@ -1095,7 +1210,7 @@ function makeShapeElementClass() {
 
     _requestRender() {
       if (!this.isConnected || this._frame) return;
-      this._frame = requestAnimationFrame((now) => {
+      this._frame = scheduleFrame((now) => {
         this._frame = 0;
         this._advanceValue(now);
         this._render();
@@ -1111,7 +1226,7 @@ function makeShapeElementClass() {
 
     _transitionToValue() {
       const target = this.value;
-      if (!this.isConnected || this._displayValue === null || !this.duration ||
+      if (!this.isConnected || this.indeterminate || this._displayValue === null || !this.duration ||
           !["ring", "arc", "bar"].includes(this.shape) || document.hidden ||
           window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         this._finishTransition();
@@ -1151,14 +1266,14 @@ function makeShapeElementClass() {
         start ??= now;
         const t = Math.min(1, (now - start) / milliseconds);
         this._bright.intensity = base + (peak - base) * Math.sin(Math.PI * t) ** 2;
-        if (t < 1) this._pulseFrame = requestAnimationFrame(tick);
+        if (t < 1) this._pulseFrame = scheduleFrame(tick);
         else this.stopPulse();
       };
-      this._pulseFrame = requestAnimationFrame(tick);
+      this._pulseFrame = scheduleFrame(tick);
     }
 
     stopPulse() {
-      cancelAnimationFrame(this._pulseFrame);
+      cancelFrame(this._pulseFrame);
       this._pulseFrame = 0;
       this._pulsing = false;
       this._bright.intensity = this.intensity;
@@ -1257,7 +1372,8 @@ function makeShapeElementClass() {
         const trackSource = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trackSvg)}`;
         if (this._track.getAttribute("src") !== trackSource) this._track.src = trackSource;
       }
-      const svg = this._svg(width, height, color, endColor, this._displayValue ?? this.value);
+      const loading = this.indeterminate && ["ring", "arc", "bar"].includes(this.shape);
+      const svg = this._svg(width, height, color, endColor, loading ? 25 : this._displayValue ?? this.value);
       const source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       if (this._image.getAttribute("src") !== source) this._image.src = source;
     }

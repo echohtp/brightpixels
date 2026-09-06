@@ -17,7 +17,7 @@ const demo = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const reactTypes = readFileSync(new URL("../react.d.ts", import.meta.url), "utf8");
 
 test("exports the minimal API", () => {
-  assert.equal(version, "0.3.0");
+  assert.equal(version, "0.5.0");
   assert.equal(typeof defineBrightpixels, "function");
   assert.equal(typeof brighten, "function");
   assert.equal(typeof brightenImages, "function");

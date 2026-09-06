@@ -53,6 +53,8 @@ declare module "react" {
           linecap?: "butt" | "round" | "square";
           track?: string;
           duration?: number | string;
+          status?: "loading" | "success" | "warning" | "error";
+          indeterminate?: boolean;
         };
     }
   }

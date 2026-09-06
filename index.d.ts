@@ -3,6 +3,15 @@ export interface BrightpixelsSettings {
   intensity?: number;
 }
 
+export interface BrightpixelsConfig {
+  /** Disable HDR and release renderer resources; fallback content remains visible. */
+  enabled: boolean;
+  /** Scale extra HDR light, 0–1. Zero means reference white, not black. */
+  brightness: number;
+}
+export declare function configureBrightpixels(options?: Partial<BrightpixelsConfig>): BrightpixelsConfig;
+export declare function getBrightpixelsConfig(): BrightpixelsConfig;
+
 export interface BrightTextElement extends HTMLElement {
   intensity: number;
   /** CSS color; defaults to white. Display P3 is supported where available. */
@@ -17,7 +26,7 @@ export interface BrightImageElement extends HTMLElement {
   readonly image: HTMLImageElement | null;
 }
 
-export declare const version: "0.3.0";
+export declare const version: "0.5.0";
 
 export interface BrightShapeElement extends HTMLElement {
   shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
@@ -50,6 +59,10 @@ export interface BrightShapeElement extends HTMLElement {
   track: string;
   /** Progress transition duration in milliseconds, 0–5000; default 0 (instant). */
   duration: number;
+  status: "" | "loading" | "success" | "warning" | "error";
+  /** Cached native loading animation for rings, arcs, and bars. */
+  indeterminate: boolean;
+  setStatus(status: "" | "loading" | "success" | "warning" | "error", options?: { pulse?: boolean }): void;
   /** One brightness swell, returning to the base intensity; respects reduced motion. */
   pulse(options?: { intensity?: number; duration?: number }): void;
   stopPulse(): void;

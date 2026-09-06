@@ -341,6 +341,7 @@
         <a href="#images">Images</a>
         <a href="#color">Color</a>
         <a href="#shapes">Shapes</a>
+        <a href="#states">States</a>
         <a href="#playground">Play</a>
         <a href="https://github.com/echohtp/brightpixels#readme">Docs</a>
       </nav>
@@ -548,6 +549,32 @@
   style="width:12rem;height:4rem" color="#26df8b" intensity="4"&gt;&lt;/bright-shape&gt;</code></pre>
       </section>
 
+      <section class="shell" id="states" aria-labelledby="states-heading">
+        <p class="section-label">BrightPixels 0.5</p>
+        <h2 id="states-heading">Loading to done.</h2>
+        <p class="caption">A cached loading animation, clear status symbols, and a global control for extra light.</p>
+        <div class="shape-demos">
+          <bright-shape id="job-state" status="loading" track intensity="3" aria-hidden="true"></bright-shape>
+          <p id="job-label" role="status">Loading…</p>
+          <bright-shape id="job-bar" shape="bar" indeterminate track intensity="3" color="#68bfff" aria-hidden="true"></bright-shape>
+        </div>
+        <div class="shape-demos" id="job-actions">
+          <button type="button" data-status="loading">Loading</button>
+          <button type="button" data-status="success">Success</button>
+          <button type="button" data-status="warning">Warning</button>
+          <button type="button" data-status="error">Error</button>
+        </div>
+        <div class="playground-controls" style="max-width:32rem;margin:2rem 0">
+          <label class="check-control"><input id="global-hdr" type="checkbox" checked /> Enable HDR across this page</label>
+          <label>Extra brightness <output id="global-brightness-label">100%</output><input id="global-brightness" type="range" min="0" max="100" value="100" /></label>
+        </div>
+        <p class="caption" id="global-status" role="status">HDR is enabled where supported. Your display determines the visible brightness.</p>
+        <pre style="margin-top:2rem"><code>&lt;bright-shape status="loading" track intensity="3"&gt;&lt;/bright-shape&gt;
+
+indicator.setStatus("success", { pulse: true });
+configureBrightpixels({ enabled: true, brightness: 0.5 });</code></pre>
+      </section>
+
       <section class="shell" id="playground" aria-labelledby="playground-heading">
         <p class="section-label">Shape playground</p>
         <h2 id="playground-heading">Make it your own.</h2>
@@ -614,6 +641,26 @@
       <span>Best viewed on an HDR display.</span>
     </footer>
     <script type="module">
+      import { configureBrightpixels } from './index.js';
+      document.querySelector('#job-actions').addEventListener('click', (event) => {
+        const status = event.target.dataset.status;
+        if (!status) return;
+        document.querySelector('#job-state').setStatus(status, { pulse: status !== 'loading' });
+        const bar = document.querySelector('#job-bar');
+        bar.indeterminate = status === 'loading';
+        bar.value = status === 'loading' ? 25 : 100;
+        bar.color = { loading: '#68bfff', success: '#26df8b', warning: '#ffca36', error: '#ff6677' }[status];
+        document.querySelector('#job-label').textContent = { loading: 'Loading…', success: 'Complete', warning: 'Needs attention', error: 'Something failed' }[status];
+      });
+      const updateGlobal = () => {
+        const enabled = document.querySelector('#global-hdr').checked;
+        const brightness = Number(document.querySelector('#global-brightness').value) / 100;
+        configureBrightpixels({ enabled, brightness });
+        document.querySelector('#global-brightness-label').textContent = Math.round(brightness * 100) + '%';
+        document.querySelector('#global-status').textContent = enabled ? 'HDR enabled where supported. Extra brightness: ' + Math.round(brightness * 100) + '%.' : 'HDR is off. Original images and normal-brightness shapes remain visible.';
+      };
+      document.querySelector('#global-hdr').addEventListener('change', updateGlobal);
+      document.querySelector('#global-brightness').addEventListener('input', updateGlobal);
       const play = document.querySelector("#play-shape");
       const field = (name) => document.querySelector(`#play-${name}`);
       const syncPlay = () => {
