@@ -14,6 +14,8 @@ async function open(page,fallback=true){
 
 test('drag light paints a bounded trail, fades out, and respects cancellation',async({page})=>{
   await open(page);
+  // Leave enough inspection time on WebKit's software canvas before verifying expiry.
+  await page.evaluate(()=>light.update({trailLifetime:1500}));
   const box=await page.locator('#draw').boundingBox();
   await page.mouse.move(box.x+30,box.y+100);
   await page.mouse.down();

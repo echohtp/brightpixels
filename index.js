@@ -1753,7 +1753,7 @@ struct VertexOutput { @builtin(position) position: vec4f, @location(0) uv: vec2f
   light += (exp(-scanDistance*scanDistance/80.0)*.75 + exp(-scanDistance*scanDistance/2400.0)*.17) * s.sweep.y;
   let fill = smoothstep(1.0-s.charge.x-.012,1.0-s.charge.x+.012,v.uv.y) * s.charge.y;
   let fillEdge = exp(-pow((v.uv.y-(1.0-s.charge.x))*s.size.y/2.0,2.0)) * s.charge.y;
-  light += fill * (.055 + edge * .6) + fillEdge * .5;
+  light += fill * (.16 + edge * .6) + fillEdge * .5;
   for (var i = 0u; i < 12u; i++) {
     let point = s.traces[i];
     if (point.w <= 0.0) { continue; }
@@ -2162,7 +2162,7 @@ class BrightSurfaceController {
     }
     if (u[41]) {
       const level = (1-u[40])*h;
-      ctx.fillStyle = paint; ctx.globalAlpha = .12*u[41]; ctx.fillRect(0,level,w,h-level);
+      ctx.fillStyle = paint; ctx.globalAlpha = .22*u[41]; ctx.fillRect(0,level,w,h-level);
       ctx.globalAlpha = .8*u[41]; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(0,level); ctx.lineTo(w,level); ctx.stroke();
       ctx.save(); ctx.beginPath(); ctx.rect(0,level,w,h-level); ctx.clip(); outline(); ctx.restore();
@@ -2171,8 +2171,12 @@ class BrightSurfaceController {
     for (let i=44;i<SURFACE_FLOATS;i+=4) {
       if (!u[i+3]) continue;
       ctx.globalAlpha = u[i+3]; ctx.lineWidth = u[i+2]*2;
-      ctx.beginPath(); ctx.moveTo(i>44 && u[i-1] ? u[i-4] : u[i],i>44 && u[i-1] ? u[i-3] : u[i+1]);
-      ctx.lineTo(u[i],u[i+1]); ctx.stroke();
+      if (i === 44 || !u[i-1]) {
+        // WebKit does not consistently paint round caps on zero-length strokes.
+        ctx.fillStyle = paint; ctx.beginPath(); ctx.arc(u[i],u[i+1],u[i+2],0,Math.PI*2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.moveTo(u[i-4],u[i-3]); ctx.lineTo(u[i],u[i+1]); ctx.stroke();
+      }
     }
     ctx.restore();
   }
