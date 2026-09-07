@@ -24,6 +24,13 @@ a white core and a fading neon tail. Trails stop over cards and controls. The
 motion toggle and system reduced-motion preference disable them. No library is
 required; assets/tron-trail.js uses a bounded SVG layer with no idle render loop.
 
+FIRE CONFETTI launches two neon cannons with stars, ribbons, dots and rings.
+assets/confetti-cannon.js exports fireConfetti(buttonElement) for reuse with this
+stylesheet. The particle layer is inert, capped at 192 pieces, and cleaned up
+after each burst. Reduced motion or disabled floaty bits uses stationary fading
+sparkles. Particle glows are CSS with P3 colors where supported; the containing
+card retains its Brightpixels HDR press effect.
+
 Included: page, CSS, interaction code, shared container glow, Brightpixels runtime,
 and the locally bundled Anton font. Runtime license: LICENSE.txt. Font license:
 assets/fonts/Anton-OFL.txt. Nothing is loaded from a third-party server at runtime.

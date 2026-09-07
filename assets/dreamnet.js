@@ -1,9 +1,15 @@
 import { brightenFeedback, configureBrightpixels } from '../index.js';
 import { glowCards } from './card-glow.js';
 import './tron-trail.js';
+import { fireConfetti } from './confetti-cannon.js';
 const $ = (id) => document.getElementById(id), root = document.documentElement;
 brightenFeedback(document.querySelectorAll('button'));
 glowCards('.dn-window');
+let salvos = 0;
+$('confetti-fire').addEventListener('click', event => {
+  fireConfetti(event.currentTarget);
+  $('confetti-status').textContent = `NEON SALVO ${String(++salvos).padStart(2, '0')} · ready to fire again`;
+});
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const save = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 const previous = read('dreamnet-visits', 0);

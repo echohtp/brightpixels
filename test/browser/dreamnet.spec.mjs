@@ -5,6 +5,34 @@ async function open(page) {
   await page.goto('/dreamnet.html');
 }
 
+test('neon confetti cannon bursts, caps particles and supports reduced motion on phones', async ({ page }, info) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await open(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.locator('#confetti-fire').click();
+  const pieces = page.locator('.dn-confetti-piece');
+  await expect(pieces).toHaveCount(96);
+  await expect(page.locator('#confetti-status')).toContainText('SALVO 01');
+  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('pointer-events', 'none');
+  await pieces.evaluateAll(items => items.forEach(item => item.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 450; })));
+  if (info.project.name === 'chromium') await page.screenshot({ path: 'test-results/dreamnet-confetti.png' });
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) document.querySelector('#confetti-fire').click(); });
+  expect(await pieces.count()).toBeLessThanOrEqual(192);
+  await expect(page.locator('#confetti-status')).toContainText('SALVO 05');
+  await pieces.evaluateAll(items => items.forEach(item => item.getAnimations().forEach(animation => animation.finish())));
+  await expect(pieces).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#confetti-fire').click();
+  await expect(pieces).toHaveCount(14);
+  expect(await pieces.evaluateAll(items => items.every(item => item.getAnimations().every(animation => animation.effect.getKeyframes().every(frame => frame.transform === undefined))))).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(pieces).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('background Tron trails render, fade and respect motion controls', async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page);
