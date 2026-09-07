@@ -70,14 +70,15 @@
     "./react.js"
   ],
   "scripts": {
-    "test": "npm run check:particles && node scripts/build-confetti-demo.mjs --check && node scripts/build-surfaces-demo.mjs --check && node --test test/*.test.mjs",
+    "test": "npm run check:particles && node scripts/build-confetti-demo.mjs --check && node scripts/build-surfaces-demo.mjs --check && node scripts/build-actions-demo.mjs --check && node --test test/*.test.mjs",
     "prepublishOnly": "npm test && npm run test:types",
     "test:types": "tsc -p test/types/tsconfig.json",
     "test:browser": "node scripts/build-confetti-demo.mjs --test && node scripts/build-surfaces-demo.mjs --test && playwright test",
     "build:confetti-demo": "node scripts/build-confetti-demo.mjs",
     "build:particles": "node scripts/build-particles.mjs",
     "check:particles": "node scripts/build-particles.mjs --check",
-    "build:surfaces-demo": "node scripts/build-surfaces-demo.mjs"
+    "build:surfaces-demo": "node scripts/build-surfaces-demo.mjs",
+    "build:actions-demo": "node scripts/build-actions-demo.mjs"
   },
   "keywords": [
     "hdr",

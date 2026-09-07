@@ -224,7 +224,7 @@ export function createEffectSequence(steps) {
     if (!step || !supported.includes(step.effect)) throw new TypeError('Unknown sequence effect.');
     if (['charge','sweep','flash','ripple'].includes(step.effect)) surface(step.surface);
     if (step.effect === 'group' && typeof step.group?.burst !== 'function') throw new TypeError('Expected a surface group.');
-    if (step.effect === 'particles') { element(step.target); if (typeof step.engine?.burstFrom !== 'function') throw new TypeError('Expected a particle engine.'); }
+    if (step.effect === 'particles') { if (!(step.target instanceof Element) || !step.target.isConnected) throw new TypeError('Expected a connected emitter element.'); if (typeof step.engine?.burstFrom !== 'function') throw new TypeError('Expected a particle engine.'); }
     const fallback = step.effect === 'charge' ? 400 : step.effect === 'sweep' ? 500 : step.effect === 'wait' ? 100 : 0;
     return { ...step, options: { ...step.options }, duration: clamp(step.duration, 0, 5000, fallback) };
   });
@@ -244,9 +244,10 @@ export function createEffectSequence(steps) {
         if (finished) return;
         finished = true; clearTimeout(timer); cancelAnimationFrame(frame); cleanup();
         if (status !== 'completed') {
-          for (const group of groups) group.cancel();
-          for (const light of touched) light.cancel();
-          for (const [light, charge] of charges) light.setCharge(charge);
+          const attempts = [...groups].map(group => () => group.cancel());
+          attempts.push(...[...touched].map(light => () => light.cancel()));
+          attempts.push(...[...charges].map(([light, charge]) => () => light.setCharge(charge)));
+          for (const attempt of attempts) { try { attempt(); } catch (failure) { error ||= failure; } }
         }
         if (current === run) current = null;
         if (error) reject(error); else settle(status);
@@ -271,9 +272,11 @@ export function createEffectSequence(steps) {
             else {
               const tick = now => {
                 if (finished) return;
-                const progress = Math.min(1, (now - start) / step.duration);
-                light.setCharge(from + (to - from) * (1 - (1 - progress) ** 3));
-                if (progress < 1) frame = requestAnimationFrame(tick); else next();
+                try {
+                  const progress = Math.min(1, (now - start) / step.duration);
+                  light.setCharge(from + (to - from) * (1 - (1 - progress) ** 3));
+                  if (progress < 1) frame = requestAnimationFrame(tick); else next();
+                } catch (error) { finish('cancelled', error); }
               };
               frame = requestAnimationFrame(tick); return;
             }

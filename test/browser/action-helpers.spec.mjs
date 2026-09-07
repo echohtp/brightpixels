@@ -168,6 +168,25 @@ test('sequence abort, detach and reduced motion stop stale or animated work', as
   expect(await page.evaluate(async () => await run)).toBe('cancelled');
 });
 
+test('sequence validates bounds, aborts immediately and rejects animation errors without leaking a run', async ({ page }) => {
+  await open(page);
+  expect(await page.evaluate(async () => {
+    const errors = [];
+    for (const steps of [[], Array.from({length:65}, () => ({effect:'wait'})), [{effect:'unknown'}], Array.from({length:7}, () => ({effect:'wait',duration:5000}))]) {
+      try { helpers.createEffectSequence(steps); } catch (error) { errors.push(error.name); }
+    }
+    const abort = new AbortController(); abort.abort();
+    const sequence = helpers.createEffectSequence([{effect:'charge', surface:light, value:1, duration:150}]);
+    const cancelled = await sequence.play({signal:abort.signal});
+    const original = light.setCharge.bind(light); let count = 0;
+    light.setCharge = value => { if (++count === 1) throw new Error('renderer failed'); return original(value); };
+    let rejected = '';
+    try { await sequence.play(); } catch (error) { rejected = error.message; }
+    const running = sequence.running; sequence.destroy();
+    return { errors, cancelled, rejected, running, charge:light.charge };
+  })).toEqual({errors:['TypeError','TypeError','TypeError','RangeError'],cancelled:'cancelled',rejected:'renderer failed',running:false,charge:0});
+});
+
 test('Action Lab works on a phone, cancels on navigation and stays compact', async ({ browser }, testInfo) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
   const page = await context.newPage();
