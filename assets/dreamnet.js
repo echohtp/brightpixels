@@ -1,5 +1,6 @@
 import { brightenFeedback, configureBrightpixels } from '../index.js';
 import { glowCards } from './card-glow.js';
+import './tron-trail.js';
 const $ = (id) => document.getElementById(id), root = document.documentElement;
 brightenFeedback(document.querySelectorAll('button'));
 glowCards('.dn-window');
