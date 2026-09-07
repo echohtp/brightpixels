@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — 2026-09-07
+
+- Add `brightenSurface` for real HDR pointer spotlights, touch-origin ripples, connected container feedback and travelling border lights.
+- Add optional `brightpixels/react-surface` with semantic server markup, live options, ref controls and StrictMode cleanup.
+- Share GPU devices and animation scheduling with the core; bound waves, suspend offscreen/hidden work, and provide static reduced-motion feedback and canvas fallbacks.
+- Coordinate positioning between independent edge and surface enhancements.
+- Add the interactive surface demo, API documentation, browser lifecycle checks and HDR pixel readback coverage.
+
 ## 1.2.0 — 2026-09-07
 
 - Add `brightpixels/confetti` and optional `brightpixels/react-confetti` with a

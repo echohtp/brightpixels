@@ -61,3 +61,17 @@ effects.pause(); effects.resume(); effects.burst({ velocityX: 30, wind: 20, flut
 export const UnsupportedConfetti = <BrightConfetti drawShape={() => {}}/>;
 // @ts-expect-error The viewport layer sizes itself; arbitrary canvas dimensions are not supported.
 export const UnsupportedDimensions = <BrightConfetti width={300}/>;
+
+import { brightenSurface, type BrightSurfaceController } from 'brightpixels';
+import BrightSurface, { type BrightSurfaceHandle } from 'brightpixels/react-surface';
+const surfaceRef = createRef<BrightSurfaceHandle>();
+export const GlowingCard = () => <BrightSurface ref={surfaceRef} as="article" className="card" options={{ loading: true, spotlightSize: 180 }}><button>Save</button></BrightSurface>;
+const surface: BrightSurfaceController = brightenSurface(document.createElement('div'), { color: 'cyan', ripple: true });
+surface.setLoading(false).flash('success').ripple({ x: 10, y: 20 }).select();
+surface.link(document.createElement('button'), { kind: 'notify' })();
+surfaceRef.current?.flash('complete');
+surface.destroy();
+// @ts-expect-error Surface signals are intentionally limited to known outcomes.
+surface.flash('alarm');
+// @ts-expect-error Replaced elements cannot act as React surface containers.
+export const InvalidSurface = <BrightSurface as="input"/>;

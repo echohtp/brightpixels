@@ -41,7 +41,7 @@ export interface BrightImageElement extends HTMLElement {
   readonly image: HTMLImageElement | null;
 }
 
-export declare const version: "1.2.0";
+export declare const version: "1.3.0";
 
 export interface BrightShapeElement extends HTMLElement {
   shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
@@ -149,3 +149,54 @@ export declare function brightenFeedback(targets: string | Element | Iterable<El
   thickness?: number;
   press?: boolean;
 }): BrightFeedbackController[];
+
+export type BrightSurfaceFlash = 'press' | 'success' | 'error' | 'warning' | 'complete' | 'notify';
+export interface BrightSurfaceOptions {
+  /** CSS color, converted to sRGB for the surface renderer. Defaults to cyan. */
+  color?: string;
+  /** HDR strength, 1–16. Defaults to 8. */
+  intensity?: number;
+  /** Border light width in CSS pixels, .5–16. Defaults to 2. */
+  thickness?: number;
+  /** Uniform pixel radius. Null uses the target's top-left computed radius. */
+  radius?: number | null;
+  /** Spotlight radius in CSS pixels, 24–800. Defaults to 180. */
+  spotlightSize?: number;
+  spotlight?: boolean;
+  ripple?: boolean;
+  /** Automatic pointer / keyboard feedback, including descendant controls. */
+  press?: boolean;
+  /** Travelling edge light. Reduced motion shows a steady edge. */
+  loading?: boolean;
+  /** Visual selection only; the caller owns ARIA and application state. */
+  selected?: boolean;
+  /** Disable all surface effects. Global HDR disable instead keeps the fallback. */
+  enabled?: boolean;
+}
+export interface BrightSurfaceController {
+  readonly target: HTMLElement;
+  readonly overlay: HTMLElement;
+  /** Initial renderer setup. It reports renderer mode, not physical display brightness. */
+  readonly ready: Promise<'hdr' | 'fallback'>;
+  readonly mode: 'hdr' | 'fallback';
+  readonly fallbackReason: BrightpixelsFallbackReason | null;
+  readonly loading: boolean;
+  readonly selected: boolean;
+  readonly running: boolean;
+  /** Merge supplied options. Repeated enhancement of a target returns this controller. */
+  update(options?: BrightSurfaceOptions): this;
+  refresh(): this;
+  flash(kind?: BrightSurfaceFlash): this;
+  /** Origin in local border-box CSS pixels; defaults to the center. Bounded to four waves. */
+  ripple(origin?: { x?: number; y?: number }): this;
+  setLoading(value?: boolean): this;
+  select(value?: boolean): this;
+  /** Connect another element's click to a visual response. Returns an unlink function. */
+  link(trigger: HTMLElement, options?: { kind?: BrightSurfaceFlash }): () => void;
+  /** Clear transient light and loading. Preserve visual selection. */
+  cancel(): this;
+  /** Remove resources and listeners. Also runs automatically when the overlay is detached. */
+  destroy(): void;
+}
+/** Enhance a single connected HTML container. Throws without a DOM or for unsupported targets. */
+export declare function brightenSurface(target: HTMLElement, options?: BrightSurfaceOptions): BrightSurfaceController;

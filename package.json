@@ -1,7 +1,7 @@
 {
   "name": "brightpixels",
-  "version": "1.2.0",
-  "description": "Dependency-free HDR text, images, shapes, interaction feedback, and particles, with optional React confetti.",
+  "version": "1.3.0",
+  "description": "HDR text, images, shapes, interactive surfaces and particles, with optional React components.",
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
@@ -34,6 +34,11 @@
       "types": "./react-confetti.d.ts",
       "import": "./react-confetti.js",
       "default": "./react-confetti.js"
+    },
+    "./react-surface": {
+      "types": "./react-surface.d.ts",
+      "import": "./react-surface.js",
+      "default": "./react-surface.js"
     }
   },
   "files": [
@@ -49,20 +54,23 @@
     "confetti.js",
     "confetti.d.ts",
     "react-confetti.js",
-    "react-confetti.d.ts"
+    "react-confetti.d.ts",
+    "react-surface.js",
+    "react-surface.d.ts"
   ],
   "sideEffects": [
     "./index.js",
     "./react.js"
   ],
   "scripts": {
-    "test": "npm run check:particles && node scripts/build-confetti-demo.mjs --check && node --test test/*.test.mjs",
+    "test": "npm run check:particles && node scripts/build-confetti-demo.mjs --check && node scripts/build-surfaces-demo.mjs --check && node --test test/*.test.mjs",
     "prepublishOnly": "npm test && npm run test:types",
     "test:types": "tsc -p test/types/tsconfig.json",
-    "test:browser": "node scripts/build-confetti-demo.mjs --test && playwright test",
+    "test:browser": "node scripts/build-confetti-demo.mjs --test && node scripts/build-surfaces-demo.mjs --test && playwright test",
     "build:confetti-demo": "node scripts/build-confetti-demo.mjs",
     "build:particles": "node scripts/build-particles.mjs",
-    "check:particles": "node scripts/build-particles.mjs --check"
+    "check:particles": "node scripts/build-particles.mjs --check",
+    "build:surfaces-demo": "node scripts/build-surfaces-demo.mjs"
   },
   "keywords": [
     "hdr",

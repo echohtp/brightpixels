@@ -1,4 +1,4 @@
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -1471,6 +1471,28 @@ function makeShapeElementClass() {
   };
 }
 
+// Positioning is leased so independently added edges and surfaces can coexist.
+const positionedTargets = new WeakMap();
+function retainPosition(target) {
+  let state = positionedTargets.get(target);
+  if (!state) {
+    state = { count: 0, owned: getComputedStyle(target).position === 'static',
+      value: target.style.getPropertyValue('position'), priority: target.style.getPropertyPriority('position') };
+    positionedTargets.set(target, state);
+    if (state.owned) target.style.setProperty('position', 'relative');
+  }
+  state.count++;
+}
+function releasePosition(target) {
+  const state = positionedTargets.get(target);
+  if (!state || --state.count) return;
+  positionedTargets.delete(target);
+  if (state.owned && target.style.position === 'relative' && !target.style.getPropertyPriority('position')) {
+    if (state.value) target.style.setProperty('position', state.value, state.priority);
+    else target.style.removeProperty('position');
+  }
+}
+
 const edgeEnhancements = new WeakMap();
 
 function makeEdgeElementClass() {
@@ -1501,10 +1523,7 @@ function makeEdgeElementClass() {
       if (!target) return;
       this._target = target;
       this._hover = Boolean(window.matchMedia?.("(any-hover: hover)").matches) && target.matches(":hover");
-      if (getComputedStyle(target).position === "static") {
-        this._position = { value: target.style.getPropertyValue("position"), priority: target.style.getPropertyPriority("position") };
-        target.style.setProperty("position", "relative");
-      }
+      retainPosition(target);
       target.addEventListener("pointerenter", this._enter);
       target.addEventListener("pointerleave", this._leave);
       target.addEventListener("pointerdown", this._press);
@@ -1530,10 +1549,7 @@ function makeEdgeElementClass() {
         target.removeEventListener("pointerdown", this._press);
         target.removeEventListener("focusin", this._refresh);
         target.removeEventListener("focusout", this._refresh);
-        if (this._position && target.style.position === "relative" && !target.style.getPropertyPriority("position")) {
-          if (this._position.value) target.style.setProperty("position", this._position.value, this._position.priority);
-          else target.style.removeProperty("position");
-        }
+        releasePosition(target);
       }
       this._position = null;
       this._target = null;
@@ -1685,6 +1701,411 @@ export function brightenFeedback(targets, options = {}) {
     idle(); feedbackEnhancements.set(target, controller);
     return controller;
   }).filter(Boolean);
+}
+
+// Interactive surfaces share the core GPU device and frame scheduler.
+const surfaceEnhancements = new WeakMap();
+const surfacePipelines = new WeakMap();
+const SURFACE_DEFAULTS = { color: '#55eeff', intensity: 8, thickness: 2, radius: null,
+  spotlightSize: 180, spotlight: true, ripple: true, press: true, loading: false, selected: false, enabled: true };
+const SURFACE_SHADER = `
+struct Surface {
+  size: vec4f, // width, height, corner radius, edge thickness
+  color: vec4f, // linear color, intensity
+  pointer: vec4f, // local position, spotlight radius, visibility
+  state: vec4f, // flash envelope, selected, loading, time
+  waves: array<vec4f, 4>, // origin, radius, opacity
+};
+@group(0) @binding(0) var<uniform> s: Surface;
+struct VertexOutput { @builtin(position) position: vec4f, @location(0) uv: vec2f };
+@vertex fn vertexMain(@builtin(vertex_index) i: u32) -> VertexOutput {
+  let p = array<vec2f, 3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
+  var v: VertexOutput; v.position = vec4f(p[i],0,1); v.uv = p[i] * vec2f(.5,-.5) + .5; return v;
+}
+@fragment fn fragmentMain(v: VertexOutput) -> @location(0) vec4f {
+  let p = v.uv * s.size.xy;
+  let q = abs(p - s.size.xy * .5) - (s.size.xy * .5 - s.size.z);
+  let distance = length(max(q,vec2f(0))) + min(max(q.x,q.y),0) - s.size.z;
+  let clip = 1.0 - smoothstep(-.75,.25,distance);
+  let edge = exp(-pow((distance + s.size.w * .5) / max(.7,s.size.w * .5),2.0));
+  let halo = exp(distance / 16.0) * clip;
+  let d = length(p - s.pointer.xy) / max(1.0,s.pointer.z);
+  let spot = (exp(-d*d*4.0)*.22 + exp(-d*d*70.0)*.45) * s.pointer.w;
+  let angle = atan2(p.y-s.size.y*.5,p.x-s.size.x*.5) / 6.2831853;
+  let trail = fract(angle - s.state.w * .55 + 1.0);
+  let chase = pow(trail,18.0) * s.state.z;
+  var light = spot + edge * (s.state.x + s.state.y*.32 + chase) + halo * (s.state.x*.28 + s.state.y*.035 + chase*.24);
+  light += s.state.x * .08;
+  for (var i = 0u; i < 4u; i++) {
+    let wave = s.waves[i];
+    let ring = abs(length(p-wave.xy)-wave.z);
+    light += (exp(-ring*ring/6.0)*.85 + exp(-ring*ring/180.0)*.18) * wave.w;
+  }
+  light = min(light * clip, 1.0);
+  return vec4f(s.color.rgb * s.color.a * light, min(light,.75));
+}`;
+
+function getSurfacePipeline(device) {
+  if (!surfacePipelines.has(device)) {
+    const shader = device.createShaderModule({ code: SURFACE_SHADER });
+    const promise = device.createRenderPipelineAsync({ layout: 'auto',
+      vertex: { module: shader, entryPoint: 'vertexMain' },
+      fragment: { module: shader, entryPoint: 'fragmentMain', targets: [{ format: 'rgba16float' }] },
+      primitive: { topology: 'triangle-list' } });
+    surfacePipelines.set(device, promise);
+    promise.catch(() => surfacePipelines.delete(device));
+  }
+  return surfacePipelines.get(device);
+}
+
+function defineSurfaceOverlay() {
+  if (customElements.get('bright-surface')) return;
+  customElements.define('bright-surface', class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' }).innerHTML = `<style>
+        :host { position:absolute; display:block; pointer-events:none!important; user-select:none;
+          z-index:1; border-radius:inherit; overflow:hidden; dynamic-range-limit:no-limit; }
+        canvas { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; dynamic-range-limit:no-limit; }
+      </style>`;
+    }
+    disconnectedCallback() { this._controller?.destroy(); }
+  });
+}
+
+/** Add interactive HDR light to one existing container. Owns no application actions. */
+export function brightenSurface(target, options = {}) {
+  if (!hasDOM()) throw new Error('Interactive surfaces require a browser document.');
+  if (!(target instanceof HTMLElement) || !target.isConnected ||
+      (/^(input|img|textarea|select|option|video|audio|canvas|iframe|hr|br|table|tr|tbody|thead|tfoot|col|colgroup|html|head)$/.test(target.localName) || target.localName.startsWith('bright-'))) {
+    throw new TypeError('brightenSurface requires a connected HTML container, such as a div, section or button.');
+  }
+  const existing = surfaceEnhancements.get(target);
+  if (existing) return existing.update(options);
+  const controller = new BrightSurfaceController(target, options);
+  surfaceEnhancements.set(target, controller);
+  return controller;
+}
+
+class BrightSurfaceController {
+  constructor(target, options) {
+    this.target = target; this._options = { ...SURFACE_DEFAULTS };
+    this._listeners = []; this._links = new Set(); this._waves = [];
+    this._frame = 0; this._timer = 0; this._generation = 0; this._destroyed = false;
+    this._gpu = null; this._mode = 'fallback'; this._reason = 'webgpu-unavailable';
+    this._pointer = null; this._pressed = null; this._flash = null; this._near = true; this._blurred = false;
+    this._uniforms = new Float32Array(32);
+    this._motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    retainPosition(target);
+    defineSurfaceOverlay();
+    this.overlay = document.createElement('bright-surface');
+    this.overlay.setAttribute('aria-hidden', 'true');
+    this.overlay._controller = this;
+    target.append(this.overlay);
+    this._colorCanvas = document.createElement('canvas');
+    this._colorCanvas.width = this._colorCanvas.height = 1;
+    this._colorContext = this._colorCanvas.getContext('2d', { willReadFrequently: true });
+    this._fallback('webgpu-unavailable');
+    this.update(options);
+    this.refresh();
+    const rect = target.getBoundingClientRect();
+    this._near = rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+    const listen = (object, event, callback, settings) => {
+      object.addEventListener(event, callback, settings);
+      this._listeners.push(() => object.removeEventListener(event, callback, settings));
+    };
+    const eligible = event => !(event.target instanceof Element && event.target.closest(':disabled,[aria-disabled="true"],[inert]'));
+    const track = event => {
+      if (!eligible(event) || this._motion?.matches || !this._options.spotlight || !this._active() || event.isPrimary === false) return;
+      if (event.pointerType === 'touch' && this._pressed !== event.pointerId) return;
+      this._pointer = { clientX: event.clientX, clientY: event.clientY, touch: event.pointerType === 'touch' };
+      this._wake();
+    };
+    listen(target, 'pointerenter', track);
+    listen(target, 'pointermove', track, { passive: true });
+    listen(target, 'pointerleave', () => { this._pointer = null; this._wake(); });
+    listen(target, 'pointerdown', event => {
+      if (!eligible(event) || !this._options.press || event.button !== 0 || event.isPrimary === false || !this._active()) return;
+      this._pressed = event.pointerId;
+      track(event);
+      this.ripple(this._local(event.clientX, event.clientY));
+      this.flash('press');
+    });
+    listen(window, 'pointerup', event => {
+      if (this._pressed !== event.pointerId) return;
+      this._pressed = null;
+      if (this._pointer?.touch) this._pointer = null;
+      this._wake();
+    });
+    listen(window, 'pointercancel', event => {
+      if (this._pressed === event.pointerId) this._clearTransient();
+    });
+    listen(target, 'keydown', event => {
+      const control = event.target === target || event.target.closest?.('button,a[href],[role="button"],[role="checkbox"],[role="switch"],input[type="checkbox"],input[type="radio"]');
+      if (control && this._options.press && eligible(event) && !event.repeat && ['Enter', ' '].includes(event.key)) this.flash('press');
+    });
+    listen(window, 'scroll', () => this._clearTransient(), { passive: true, capture: true });
+    listen(window, 'resize', () => { this._clearTransient(); this.refresh(); });
+    listen(window, 'blur', () => { this._blurred = true; this._clearTransient(); });
+    listen(window, 'focus', () => { this._blurred = false; this._wake(); });
+    listen(window, 'pagehide', () => { this._blurred = true; this._clearTransient(); this._fallback('offscreen'); });
+    listen(window, 'pageshow', () => { this._blurred = false; this._applyConfig(); });
+    listen(document, 'visibilitychange', () => {
+      this._clearTransient();
+      if (document.hidden) this._fallback('offscreen'); else this._applyConfig();
+    });
+    if (this._motion) listen(this._motion, 'change', () => this._clearTransient());
+    this._resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.refresh()) : null;
+    this._resizeObserver?.observe(target);
+    this._styleObserver = typeof MutationObserver === 'function' ? new MutationObserver(() => this.refresh()) : null;
+    this._styleObserver?.observe(target, { attributes: true, attributeFilter: ['style', 'class'] });
+    this._intersection = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
+      this._near = entries[0].isIntersecting;
+      if (!this._near) { this._clearTransient(); this._fallback('offscreen'); }
+      else this._applyConfig();
+    }) : null;
+    this._intersection?.observe(target);
+    connectedRenderers.add(this);
+    this.ready = this._initialize();
+  }
+  get mode() { return this._mode; }
+  get fallbackReason() { return this._reason; }
+  get loading() { return this._options.loading; }
+  get selected() { return this._options.selected; }
+  get running() { return Boolean(this._frame); }
+  _active() { return !this._destroyed && this.target.isConnected && this._near && !document.hidden && !this._blurred && this._options.enabled; }
+  _local(clientX, clientY) {
+    const rect = this.overlay.getBoundingClientRect();
+    return { x: Math.max(0, Math.min(this._width, (clientX - rect.left) * this._width / Math.max(1, rect.width))),
+      y: Math.max(0, Math.min(this._height, (clientY - rect.top) * this._height / Math.max(1, rect.height))) };
+  }
+  update(options = {}) {
+    if (this._destroyed) return this;
+    for (const key of Object.keys(SURFACE_DEFAULTS)) {
+      if (options[key] !== undefined) this._options[key] = options[key] ?? SURFACE_DEFAULTS[key];
+    }
+    const number = (key, low, high) => {
+      const value = Number(this._options[key]);
+      this._options[key] = Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : SURFACE_DEFAULTS[key];
+    };
+    number('intensity', 1, 16); number('thickness', .5, 16); number('spotlightSize', 24, 800);
+    if (this._options.radius !== null) number('radius', 0, 1000);
+    for (const key of ['spotlight','ripple','press','loading','selected','enabled']) this._options[key] = Boolean(this._options[key]);
+    if (!this._options.spotlight) this._pointer = null;
+    if (!this._options.ripple) this._waves = [];
+    this._setColor(this._options.color);
+    if (!this._options.enabled) { this._clearTransient(); this._fallback('disabled'); }
+    this.refresh();
+    this._wake();
+    if (options.enabled === true && !this._gpu) this.ready = this._initialize();
+    return this;
+  }
+  refresh() {
+    if (this._destroyed) return this;
+    const style = getComputedStyle(this.target);
+    for (const side of ['top','right','bottom','left']) this.overlay.style[side] = `${-(parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0)}px`;
+    this._width = Math.max(1, this.target.offsetWidth);
+    this._height = Math.max(1, this.target.offsetHeight);
+    const radius = this._options.radius ?? (parseFloat(style.borderTopLeftRadius) || 0);
+    this._radius = Math.min(radius, this._width / 2, this._height / 2);
+    this._scale = renderScale(this._width, this._height);
+    const maximum = this._gpu?.device.limits.maxTextureDimension2D || 4096;
+    this._scale = Math.min(this._scale, maximum / this._width, maximum / this._height);
+    if (this._canvas) {
+      const w = Math.max(1, Math.round(this._width*this._scale)), h = Math.max(1, Math.round(this._height*this._scale));
+      if (this._canvas.width !== w) this._canvas.width = w;
+      if (this._canvas.height !== h) this._canvas.height = h;
+    }
+    this._wake();
+    return this;
+  }
+  _setColor(value) {
+    const ctx = this._colorContext;
+    ctx.clearRect(0,0,1,1); ctx.fillStyle = '#55eeff';
+    if (typeof value === 'string') ctx.fillStyle = value;
+    ctx.fillRect(0,0,1,1);
+    const bytes = ctx.getImageData(0,0,1,1).data;
+    const linear = n => n <= .04045 ? n/12.92 : ((n+.055)/1.055)**2.4;
+    this._color = Array.from(bytes.slice(0,3), n => linear(n/255));
+    this._alpha = bytes[3]/255;
+    this._cssColor = `rgb(${bytes[0]},${bytes[1]},${bytes[2]})`;
+  }
+  _release() {
+    if (!this._gpu) return;
+    this._gpu.device.removeEventListener('uncapturederror', this._gpu.onError);
+    this._gpu.context.unconfigure(); this._gpu.uniform.destroy(); this._gpu = null;
+  }
+  _fallback(reason) {
+    this._generation++; this._initializing = null; this._release();
+    this._mode = 'fallback'; this._reason = reason;
+    if (!this._context && !this._destroyed) {
+      const canvas = document.createElement('canvas');
+      this._context = canvas.getContext('2d');
+      this._canvas?.remove(); this._canvas = canvas; this.overlay.shadowRoot.append(canvas);
+      this.refresh();
+    }
+    this.overlay.dataset.mode = this.mode;
+    this._wake();
+  }
+  _initialize() {
+    if (this._initializing) return this._initializing;
+    if (this._gpu || this._destroyed) return Promise.resolve(this.mode);
+    if (!configuration.enabled || !this._options.enabled) { this._reason = 'disabled'; return Promise.resolve(this.mode); }
+    if (!this._near || document.hidden) { this._reason = 'offscreen'; return Promise.resolve(this.mode); }
+    if (!navigator.gpu) { this._reason = 'webgpu-unavailable'; return Promise.resolve(this.mode); }
+    const generation = ++this._generation;
+    const initialize = async () => {
+      let context, uniform;
+      try {
+        const device = await getDevice();
+        const pipeline = await getSurfacePipeline(device);
+        if (this._destroyed || generation !== this._generation) return this.mode;
+        const canvas = document.createElement('canvas'); context = canvas.getContext('webgpu');
+        if (!context) throw new Error('WebGPU canvas unavailable');
+        context.configure({ device, format: 'rgba16float', alphaMode: 'premultiplied', colorSpace: 'srgb', toneMapping: { mode: 'extended' } });
+        uniform = device.createBuffer({ size: this._uniforms.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+        const bindGroup = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: uniform } }] });
+        const onError = () => { if (!this._destroyed && this._gpu?.device === device) this._fallback('renderer-error'); };
+        device.addEventListener('uncapturederror', onError);
+        this._gpu = { device, pipeline, context, uniform, bindGroup, onError };
+        this._context = null; this._mode = 'hdr'; this._reason = null;
+        this._canvas.remove(); this._canvas = canvas; this.overlay.shadowRoot.append(canvas);
+        this.overlay.dataset.mode = this.mode; this.refresh();
+        device.lost.then(() => { if (!this._destroyed && this._gpu?.device === device) this._fallback('device-lost'); });
+      } catch {
+        context?.unconfigure(); uniform?.destroy();
+        if (!this._destroyed && generation === this._generation) this._fallback('renderer-error');
+      } finally { if (generation === this._generation) this._initializing = null; }
+      return this.mode;
+    };
+    this._initializing = initialize();
+    return this._initializing;
+  }
+  _applyConfig() {
+    if (this._destroyed) return;
+    if (!configuration.enabled || !this._options.enabled) this._fallback('disabled');
+    else this.ready = this._initialize();
+    this.refresh();
+  }
+  flash(kind = 'press') {
+    if (!this._active()) return this;
+    this._setColor(kind === 'press' ? this._options.color : FEEDBACK_COLORS[kind] || this._options.color);
+    this._flash = { start: performance.now(), duration: this._motion?.matches ? 160 : 480 };
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => { this._flash = null; this._setColor(this._options.color); this._wake(); }, this._flash.duration);
+    this._wake(); return this;
+  }
+  ripple(origin = {}) {
+    if (!this._active() || !this._options.ripple || this._motion?.matches) return this;
+    const coordinate = (value, fallback, max) => Number.isFinite(Number(value)) ? Math.max(0,Math.min(max,Number(value))) : fallback;
+    const x = coordinate(origin.x,this._width/2,this._width), y = coordinate(origin.y,this._height/2,this._height);
+    const reach = Math.hypot(Math.max(x,this._width-x),Math.max(y,this._height-y));
+    this._waves.push({ x, y, reach, start: performance.now() });
+    if (this._waves.length > 4) this._waves.shift();
+    this._wake(); return this;
+  }
+  setLoading(value = true) { return this.update({ loading: value }); }
+  select(value = true) { return this.update({ selected: value }); }
+  /** Link visual feedback only; application click handlers continue to own outcomes. */
+  link(trigger, { kind = 'press' } = {}) {
+    if (!(trigger instanceof HTMLElement)) throw new TypeError('Surface link requires an HTML element.');
+    if (this._destroyed) return () => {};
+    const click = event => {
+      if (event.target instanceof Element && event.target.closest(':disabled,[aria-disabled="true"],[inert]')) return;
+      if (event.detail > 0 && !this.target.contains(trigger)) this.ripple(this._local(event.clientX,event.clientY));
+      this.flash(kind);
+    };
+    trigger.addEventListener('click', click);
+    const stop = () => { trigger.removeEventListener('click', click); this._links.delete(stop); };
+    this._links.add(stop); return stop;
+  }
+  _clearTransient() {
+    if (this._destroyed) return;
+    this._pointer = null; this._pressed = null; this._waves = []; this._flash = null;
+    clearTimeout(this._timer); cancelFrame(this._frame); this._frame = 0;
+    this._setColor(this._options.color); this._wake();
+  }
+  cancel() { this._options.loading = false; this._clearTransient(); return this; }
+  _wake() {
+    if (this._destroyed) return;
+    if (!this._active()) {
+      cancelFrame(this._frame); this._frame = 0; this._canvas.style.visibility = 'hidden'; return;
+    }
+    if (!this._frame) this._frame = scheduleFrame(now => this._draw(now));
+  }
+  _draw(now) {
+    this._frame = 0;
+    if (!this._active()) { this._canvas.style.visibility = 'hidden'; return; }
+    this._waves = this._waves.filter(wave => now-wave.start < 480);
+    const reduced = Boolean(this._motion?.matches);
+    const flash = this._flash ? reduced ? .6 : Math.max(0,1-(now-this._flash.start)/480)**2 : 0;
+    const selected = this.selected || (reduced && this.loading);
+    const pointer = this._pointer && !reduced ? this._local(this._pointer.clientX,this._pointer.clientY) : null;
+    const active = pointer || flash || selected || this.loading || this._waves.length;
+    this._canvas.style.visibility = active ? 'visible' : 'hidden';
+    this.overlay.dataset.active = active ? 'true' : 'false';
+    if (!active) return;
+    const u = this._uniforms; u.fill(0);
+    u.set([this._width,this._height,this._radius,this._options.thickness],0);
+    u.set([...this._color,effectiveIntensity(this._options.intensity)],4);
+    u.set([pointer?.x || 0,pointer?.y || 0,this._options.spotlightSize,pointer ? this._alpha : 0],8);
+    u.set([flash*this._alpha,selected ? this._alpha : 0,this.loading && !reduced ? this._alpha : 0,now/1000],12);
+    this._waves.forEach((wave,i) => {
+      const t = Math.max(0,Math.min(1,(now-wave.start)/480));
+      u.set([wave.x,wave.y,wave.reach*(1-(1-t)**3),(1-t)**2*this._alpha],16+i*4);
+    });
+    if (this._gpu) {
+      try { this._drawGPU(); } catch { this._fallback('renderer-error'); }
+    }
+    if (this._context) this._drawFallback();
+    if (!reduced && (this.loading || flash || this._waves.length)) this._wake();
+  }
+  _drawGPU() {
+    const { device, pipeline, context, uniform, bindGroup } = this._gpu;
+    device.queue.writeBuffer(uniform,0,this._uniforms);
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({ colorAttachments: [{ view: context.getCurrentTexture().createView(),
+      loadOp: 'clear', storeOp: 'store', clearValue: { r:0,g:0,b:0,a:0 } }] });
+    pass.setPipeline(pipeline); pass.setBindGroup(0,bindGroup); pass.draw(3); pass.end();
+    device.queue.submit([encoder.finish()]);
+  }
+  _drawFallback() {
+    const ctx = this._context, u = this._uniforms, [w,h,r,t] = u;
+    ctx.setTransform(this._scale,0,0,this._scale,0,0); ctx.clearRect(0,0,w,h);
+    ctx.save(); ctx.beginPath(); ctx.roundRect(0,0,w,h,r); ctx.clip();
+    ctx.fillStyle = this._cssColor; ctx.strokeStyle = this._cssColor;
+    if (u[11]) {
+      const gradient = ctx.createRadialGradient(u[8],u[9],0,u[8],u[9],u[10]);
+      gradient.addColorStop(0,this._cssColor); gradient.addColorStop(1,'transparent');
+      ctx.globalAlpha = .55*this._alpha; ctx.fillStyle = gradient; ctx.fillRect(0,0,w,h); ctx.fillStyle = this._cssColor;
+    }
+    if (u[12]) { ctx.globalAlpha = u[12]*.12; ctx.fillRect(0,0,w,h); }
+    ctx.lineWidth = t; ctx.shadowColor = this._cssColor; ctx.shadowBlur = 16*this._scale;
+    const outline = () => { ctx.beginPath(); ctx.roundRect(t/2,t/2,Math.max(0,w-t),Math.max(0,h-t),Math.max(0,r-t/2)); ctx.stroke(); };
+    ctx.globalAlpha = Math.min(1,u[12]+u[13]*.5); outline();
+    if (u[14]) {
+      const perimeter = Math.max(1,2*(w+h-2*t)-8*r+2*Math.PI*r);
+      ctx.globalAlpha = u[14]; ctx.setLineDash([perimeter*.16,perimeter*.84]); ctx.lineDashOffset = -u[15]*perimeter*.55;
+      outline(); ctx.setLineDash([]);
+    }
+    for (let i=16;i<32;i+=4) {
+      if (!u[i+3]) continue;
+      ctx.globalAlpha = u[i+3]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(u[i],u[i+1],u[i+2],0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true; this._generation++;
+    cancelFrame(this._frame); clearTimeout(this._timer); this._frame = 0;
+    for (const remove of this._listeners) remove();
+    for (const stop of [...this._links]) stop();
+    this._resizeObserver?.disconnect(); this._styleObserver?.disconnect(); this._intersection?.disconnect();
+    this._release(); connectedRenderers.delete(this); surfaceEnhancements.delete(this.target);
+    this.overlay.remove(); this._waves = []; this._pointer = null; this._flash = null;
+    releasePosition(this.target);
+  }
 }
 
 export function defineBrightpixels() {
