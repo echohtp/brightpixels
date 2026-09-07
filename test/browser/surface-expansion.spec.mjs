@@ -127,6 +127,7 @@ test('expanded demo works on phones, with keyboard switches and palette changes'
   await page.setViewportSize({width:390,height:844});
   await page.locator('#group-burst').click();
   await expect(page.locator('#burst-status')).toContainText('NEON SALVO 02');
+  await page.getByRole('tab',{name:'Draw & charge',exact:true}).click();
   await page.locator('#energy-charge').evaluate(el=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'65');el.dispatchEvent(new Event('input',{bubbles:true}));});
   await expect(page.locator('.charge-readout output')).toHaveText('65%');
   await page.locator('#arm-neon').focus();await page.keyboard.press('Space');
@@ -185,6 +186,7 @@ test.describe('phone touch controls',()=>{
     await expect(page.locator('#burst-status')).toContainText('NEON SALVO 02');
     if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-first-screen.png'});
 
+    await page.getByRole('tab',{name:'Draw & charge',exact:true}).tap();
     await page.locator('#arm-neon').tap();
     await expect(page.locator('#arm-neon')).toHaveAttribute('aria-checked','true');
     await expect(page.locator('.charge-readout output')).toHaveText('100%');
@@ -193,9 +195,10 @@ test.describe('phone touch controls',()=>{
     expect(await page.locator('#draw-pad bright-surface').evaluate(el=>el._controller._pressed)).toBeNull();
     await expect(page.locator('#draw-pad')).toHaveCSS('touch-action','none');
     await expect(page.locator('.signal-cell').first()).toHaveCSS('touch-action','auto');
-    const targets=await page.locator('.mini-actions button, #energy-charge, #arm-neon, #group-burst').evaluateAll(els=>els.map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height})));
+    const targets=await page.locator('.mini-actions button, #energy-charge, #arm-neon, #group-burst').evaluateAll(els=>els.filter(el=>el.getClientRects().length).map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height})));
     for(const target of targets){expect(target.width).toBeGreaterThanOrEqual(44);expect(target.height).toBeGreaterThanOrEqual(44);}
-    await page.locator('#group-burst').scrollIntoViewIfNeeded();
+    if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-draw.png',fullPage:true});
+    await page.getByRole('tab',{name:'Burst',exact:true}).tap();
     if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-full-page.png',fullPage:true});
     expect(errors).toEqual([]);
   });
@@ -215,4 +218,39 @@ test.describe('phone touch controls',()=>{
     }
     if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-landscape.png'});
   });
+});
+
+test('compact panels support keyboard navigation, shared links and idle hidden effects',async({page},info)=>{
+  await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/surfaces.html#draw');
+  await expect(page.getByRole('tab',{name:'Draw & charge',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(page.locator('#group-burst')).toBeHidden();
+  await page.locator('#energy-charge').evaluate(el=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'65');el.dispatchEvent(new Event('input',{bubbles:true}));});
+  await expect(page.locator('.charge-readout output')).toHaveText('65%');
+  await page.getByRole('tab',{name:'Draw & charge',exact:true}).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab',{name:'Feedback',exact:true})).toBeFocused();
+  await page.locator('#loading-toggle').click();
+  await expect.poll(()=>page.locator('#loading-stage bright-surface').evaluate(el=>el._controller.running)).toBe(true);
+  await page.getByRole('tab',{name:'Feedback',exact:true}).focus();
+  await page.keyboard.press('Home');
+  await expect(page.getByRole('tab',{name:'Burst',exact:true})).toBeFocused();
+  await expect.poll(()=>page.locator('#loading-stage bright-surface').evaluate(el=>[el._controller.running,el._controller._options.enabled,el._controller._gpu])).toEqual([false,false,null]);
+  await expect.poll(()=>page.locator('bright-surface').evaluateAll(els=>els.filter(el=>el.closest('[hidden]')).every(el=>!el._controller.running&&!el._controller._options.enabled))).toBe(true);
+  expect(await page.evaluate(()=>document.body.scrollHeight)).toBeLessThan(1200);
+  await expect(page.locator('.code-section')).toBeHidden();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab',{name:'Feedback',exact:true})).toBeFocused();
+  expect(await page.evaluate(()=>document.body.scrollHeight)).toBeLessThan(1500);
+  if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-feedback.png',fullPage:true});
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab',{name:'Draw & charge',exact:true})).toBeFocused();
+  await expect(page.locator('.charge-readout output')).toHaveText('65%');
+  expect(await page.evaluate(()=>location.hash)).toBe('#draw');
+  await page.locator('.code-disclosure > summary').click();
+  await expect(page.locator('.code-section pre')).toContainText('glow.setCharge');
+  await page.reload();
+  await expect(page.getByRole('tab',{name:'Draw & charge',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(page.locator('#draw-pad')).toBeVisible();
 });

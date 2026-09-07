@@ -2,11 +2,17 @@
 
 Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, interaction feedback, and particles. Brightpixels uses extended-range WebGPU rendering, with ordinary-color fallbacks when HDR rendering is unavailable.
 
-**Version 1.3.1** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
+**Version 1.3.2** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
 
 [Main demo](https://echohtp.github.io/brightpixels/) · [HDR particle lab](https://echohtp.github.io/brightpixels/particles.html) · [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 1.3.1
+## What's new in 1.3.2
+
+- A compact surface lab with Burst, Draw & charge, and Feedback panels; settings persist while inactive effects stop rendering.
+- Phone-sized controls and tap-release sweeps, plus confetti tuning and code examples available on demand.
+- A shorter main navigation with every existing demo in an expandable directory.
+
+## Interactive effects from 1.3
 
 - Interactive HDR surfaces: spotlights, press ripples, full-container feedback and travelling edge lights.
 - Drawable neon trails, directional sweeps and two-color gradients.
@@ -50,7 +56,7 @@ Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, in
 npm install brightpixels
 ```
 
-For an exact version, use `npm install brightpixels@1.3.1`.
+For an exact version, use `npm install brightpixels@1.3.2`.
 
 Import the package once to register `<bright-text>`, `<bright-image>`, and `<bright-shape>`:
 

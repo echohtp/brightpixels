@@ -6,3 +6,6 @@
 :where(button, a[href], [role="button"]):focus:not(:focus-visible) {
   outline: none;
 }
+/* Native disclosure keeps every older demo one click away. */
+.demo-directory>summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;list-style-position:inside}.demo-directory[open]{flex:1 0 100%;order:2}.demo-directory-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 20px;padding:12px 0;border-top:1px solid #7394a544;margin-top:8px}.demo-directory-list a{display:flex;align-items:center;min-height:44px}.demo-directory summary:focus-visible{outline:2px solid #55eeff;outline-offset:4px}
+@media(max-width:600px){.demo-directory-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px}.links:has(.demo-directory){gap:12px}.links:has(.demo-directory)>a{min-height:44px;display:flex;align-items:center}}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2 — 2026-09-07
+
+- Condense the surface lab into keyboard-accessible Burst, Draw & charge, and Feedback panels with shareable links; preserve settings and suspend inactive rendering.
+- Bring the fire control and full four-tile reaction together on phones, enlarge touch targets and add tap-release sweeps.
+- Shorten the confetti demo with optional tuning and code disclosures, and consolidate older demo links in the main navigation.
+- Refresh demo bundles, downloadable themes and package documentation. The public effect APIs remain compatible.
+
 ## 1.3.1 — 2026-09-07
 
 - Expand the 1.3 surfaces release with bounded neon drag trails, directional light sweeps and two-color gradients.

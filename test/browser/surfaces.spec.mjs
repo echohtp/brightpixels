@@ -179,7 +179,7 @@ test('React StrictMode, live props, host changes and unmount keep one working su
 test('public demo responds on desktop and phone without overflow or script errors',async({page},info)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined}));
-  await page.goto('/surfaces.html');
+  await page.goto('/surfaces.html#feedback');
   await page.addStyleTag({content:'html{scroll-behavior:auto!important}'});
   await page.locator('#success').click();
   await expect(page.locator('#surface-status')).toContainText('Approved');

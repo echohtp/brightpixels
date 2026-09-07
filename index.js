@@ -1,4 +1,4 @@
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;

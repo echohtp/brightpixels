@@ -121,6 +121,9 @@ test('React confetti demo controls work and fit a phone', async ({ page }, info)
   await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/confetti.html');
+  await expect(page.locator('.confetti-options')).toBeHidden();
+  expect(await page.locator('#confetti-restart').evaluate(el=>el.getBoundingClientRect().bottom)).toBeLessThan(844);
+  await page.locator('.confetti-tuning > summary').click();
   await page.locator('#confetti-recycle').check();
   await page.locator('#confetti-restart').click();
   await page.locator('#confetti-pause').click();
@@ -133,6 +136,13 @@ test('React confetti demo controls work and fit a phone', async ({ page }, info)
   await page.locator('#confetti-restart').click();
   await expect(page.locator('[data-brightpixels-particles]')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('.confetti-tuning > summary').click();
+  await expect(page.locator('.confetti-options')).toBeHidden();
+  expect(await page.evaluate(()=>document.body.scrollHeight)).toBeLessThan(1100);
+  await expect(page.locator('.confetti-code pre')).toBeHidden();
+  await page.locator('.confetti-code > summary').click();
+  await expect(page.locator('.confetti-code pre')).toContainText('BrightConfetti');
+  await page.locator('.confetti-code > summary').click();
   if (info.project.name === 'chromium') {
     await page.screenshot({ path: 'test-results/react-confetti-mobile.png', fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
