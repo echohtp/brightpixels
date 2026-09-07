@@ -10,6 +10,11 @@ assets/dreamnet.js for this page's interactions. Sky variants are midnight,
 sunset and void via data-sky. data-still disables decorative movement; system
 reduced-motion preferences are also respected.
 
+Links and button labels glow on hover, keyboard focus and press. Add
+class="dn-text-glow" to other text to opt in. The halo follows the text color;
+override --dn-text-glow-color to tint its outer glow. This is a CSS text-shadow
+effect and works without HDR. Keyboard focus outlines remain visible.
+
 Included: page, CSS, interaction code, shared container glow, Brightpixels runtime,
 and the locally bundled Anton font. Runtime license: LICENSE.txt. Font license:
 assets/fonts/Anton-OFL.txt. Nothing is loaded from a third-party server at runtime.
