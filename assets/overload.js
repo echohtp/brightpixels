@@ -1,4 +1,4 @@
-import { fireConfetti } from './confetti-cannon.js?v=20260907-wry1';
+import { fireConfetti } from './confetti-cannon.js?v=20260907-particles1';
 const root = document.documentElement;
 const toggle = document.getElementById('overload-toggle');
 const portal = document.getElementById('overdrive-fire');

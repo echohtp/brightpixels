@@ -32,12 +32,14 @@ IGNITE fires 144 particles and pulses the HDR portal ring. assets/overload.css a
 assets/overload.js contain the additional theme layer. Decorative motion respects
 both the page motion switch and system preferences.
 
-FIRE CONFETTI launches two neon cannons with stars, ribbons, dots and rings.
+FIRE CONFETTI launches two neon cannons using the shared HDR particle engine.
 assets/confetti-cannon.js exports fireConfetti(buttonElement) for reuse with this
-stylesheet. The particle layer is inert, capped at 192 pieces, and cleaned up
-after each burst. Reduced motion or disabled floaty bits uses stationary fading
-sparkles. Particle glows are CSS with P3 colors where supported; the containing
-card retains its Brightpixels HDR press effect.
+stylesheet. One canvas handles both cannons and the portal. It is pointer-inert,
+uses extended-range WebGPU where available, and falls back to ordinary-color
+canvas particles. Active capacity is 1024 (256 in fallback). Reduced motion uses
+up to 12 stationary sparkles. The containing card retains its HDR press effect.
+The included particles.js and particles-shader.js are ready to use; no build is
+needed to run the kit.
 
 Included: page, CSS, interaction code, shared container glow, Brightpixels runtime,
 and the locally bundled Anton font. Runtime license: LICENSE.txt. Font license:
@@ -47,7 +49,7 @@ The guestbook and visit counter use this browser's localStorage. Guestbook notes
 are local to the browser, not published or sent anywhere. The page includes a
 clear-local-notes button. Star adoptions last only for the current page visit.
 
-The included runtime has repository features newer than the tagged 1.0.0 package.
+The included runtime is Brightpixels 1.1.0.
 HDR output depends on browser, OS and display support; the CSS theme also has
 ordinary-color fallbacks.
 

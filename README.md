@@ -4,7 +4,16 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 
 [Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 1.0
+## What's new in 1.1
+
+- Optional `brightpixels/particles` module for HDR confetti, sparks and mouse trails.
+- One reusable viewport canvas per engine, with GPU-computed motion and instanced drawing.
+- Canvas fallback, reduced-motion sparkles, explicit cleanup and global brightness controls.
+- TypeGPU generates shader structures and buffer offsets at build time. No runtime dependencies.
+
+[Try the particle lab](https://echohtp.github.io/brightpixels/particles.html).
+
+## What's included from 1.0
 
 - Stable public API for HDR text, images, shapes, progress and status indicators.
 - Existing-element edge glow and touch, mouse and keyboard interaction feedback.
@@ -20,7 +29,7 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 npm install brightpixels
 ```
 
-For an exact version, use `npm install brightpixels@1.0.0`.
+For an exact version, use `npm install brightpixels@1.1.0`.
 
 Import the package once to register `<bright-text>` and `<bright-image>`:
 
@@ -572,3 +581,58 @@ The themes and demo-specific effects are separate recipes, not npm package expor
 
 The npm 1.0.0 release includes edge and feedback helpers added after the earlier
 GitHub v1.0.0 snapshot. Use npm for the complete stable package.
+
+## HDR particles (1.1)
+
+```js
+import { createParticleEffects } from 'brightpixels/particles';
+
+const effects = createParticleEffects({ maxParticles: 1024, intensity: 8 });
+await effects.ready; // 'hdr' or 'fallback'; GPU setup failures use a fallback
+
+effects.burst({ x: 300, y: 300, count: 120, shape: 'confetti' });
+effects.burst({ x: 200, y: 200, shape: 'spark', spread: 360, colors: ['#ff48ce'] });
+const stopTrail = effects.trail(document.querySelector('.stage'));
+
+// When finished with each behavior:
+stopTrail();
+effects.clear();
+effects.destroy();
+```
+
+Reuse one engine for related effects. Each engine owns one fixed, pointer-inert,
+accessibility-hidden viewport canvas and its GPU resources. The module is safe to
+import on the server; creating an engine requires a browser document. Importing
+the main package alone does not load particle code.
+
+`burst` accepts viewport `x`/`y` in CSS pixels, `count`, CSS `colors`, `shape`
+(`confetti`, `spark`, `dot`), `intensity` (1–16), `size` (1–24px), `lifetime`
+(100–10000ms), `speed` (pixels/second), `angle` (degrees; -90 points up), `spread`
+(0–360 degrees), and `gravity` (pixels/second squared). It returns the number
+emitted. Active particle capacity defaults to 1024 and is capped at 2048; older
+particles retire when a burst fills the buffer. Pending GPU initialization and
+fallback rendering cap the active set at 256. Await `ready` before larger bursts.
+
+The GPU computes positions and rotations from emission data and time, then draws
+all active particles in one instanced draw. JavaScript handles emission, expiry,
+and scheduling. Frames stop when the last particle expires. `clear` stops current
+effects; `destroy` also removes listeners, the canvas and GPU resources. `trail`
+returns an idempotent stop function; it emits only on mouse movement and is
+suppressed by system reduced motion. Touch remains available through `burst`.
+
+System reduced motion or `burst({ reducedMotion: true })` uses up to 12 stationary
+sparkles fading over at most 700ms. Resize, blur and hidden-page transitions clear
+active effects. Existing `configureBrightpixels` controls apply: disabled HDR
+switches to ordinary-color canvas rendering and releases the GPU resources;
+brightness scales extra HDR light and quality controls canvas resolution.
+
+Inspect `mode`, `fallbackReason`, `activeCount`, `running` and `canvas` for
+integration diagnostics. A renderer reporting `hdr` does not prove physical HDR
+brightness. Particle CSS colors are converted to linear sRGB; the particle layer
+does not preserve out-of-sRGB gamut values. WebGPU support and actual HDR output
+remain browser/display dependent. Performance gains are workload dependent; no
+real-device speedup is claimed.
+
+For contributors, `npm run build:particles` regenerates `particles-shader.js`
+using pinned TypeGPU tooling. `npm test` checks generated output is current. The
+published package includes generated WGSL, not the TypeGPU runtime.

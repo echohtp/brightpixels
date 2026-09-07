@@ -3,6 +3,10 @@ import { test, expect } from '@playwright/test';
 async function open(page) {
   await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
   await page.goto('/dreamnet.html');
+  await page.evaluate(async () => {
+    const url = document.querySelector('script[src*="dreamnet.js"]').src.replace('dreamnet.js', 'confetti-cannon.js');
+    window.getCannon = (await import(url)).getConfettiEffects;
+  });
 }
 
 test('giga mode toggles and hyperspace fires on desktop and phone', async ({ page }, info) => {
@@ -20,10 +24,10 @@ test('giga mode toggles and hyperspace fires on desktop and phone', async ({ pag
   await expect(page.locator('html')).toHaveAttribute('data-overload', 'giga');
   await page.locator('#overdrive-fire').click();
   await expect(page.locator('#overdrive-status')).toContainText('JUMP 01 COMPLETE');
-  await expect(page.locator('.dn-confetti-piece')).toHaveCount(14);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(12);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.locator('#overdrive-fire').click();
-  await expect(page.locator('.dn-confetti-piece')).toHaveCount(144);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(144);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.mouse.move(0, 0);
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -44,9 +48,9 @@ test('new cannon loads fresh assets even when unversioned demo files are stale',
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.locator('#confetti-fire').click();
   await expect(page.locator('#confetti-status')).toContainText('SALVO 01');
-  await expect(page.locator('.dn-confetti-piece')).toHaveCount(96);
-  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('position', 'fixed');
-  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('pointer-events', 'none');
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(120);
+  await expect(page.locator('[data-brightpixels-particles]')).toHaveCSS('position', 'fixed');
+  await expect(page.locator('[data-brightpixels-particles]')).toHaveCSS('pointer-events', 'none');
 });
 
 test('neon confetti cannon bursts, caps particles and supports reduced motion on phones', async ({ page }, info) => {
@@ -55,25 +59,22 @@ test('neon confetti cannon bursts, caps particles and supports reduced motion on
   await open(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.locator('#confetti-fire').click();
-  const pieces = page.locator('.dn-confetti-piece');
-  await expect(pieces).toHaveCount(96);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(120);
   await expect(page.locator('#confetti-status')).toContainText('SALVO 01');
-  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('pointer-events', 'none');
-  await pieces.evaluateAll(items => items.forEach(item => item.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 450; })));
+  await expect(page.locator('[data-brightpixels-particles]')).toHaveCSS('pointer-events', 'none');
   if (info.project.name === 'chromium') await page.screenshot({ path: 'test-results/dreamnet-confetti.png' });
   await page.evaluate(() => { for (let i = 0; i < 4; i++) document.querySelector('#confetti-fire').click(); });
-  expect(await pieces.count()).toBeLessThanOrEqual(192);
+  expect(await page.evaluate(() => window.getCannon().activeCount)).toBeLessThanOrEqual(256);
   await expect(page.locator('#confetti-status')).toContainText('SALVO 05');
-  await pieces.evaluateAll(items => items.forEach(item => item.getAnimations().forEach(animation => animation.finish())));
-  await expect(pieces).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(0);
+  expect(await page.evaluate(() => window.getCannon().running)).toBe(false);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.locator('#confetti-fire').click();
-  await expect(pieces).toHaveCount(14);
-  expect(await pieces.evaluateAll(items => items.every(item => item.getAnimations().every(animation => animation.effect.getKeyframes().every(frame => frame.transform === undefined))))).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(12);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await expect(pieces).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.getCannon().activeCount)).toBe(0);
   expect(errors).toEqual([]);
 });
 

@@ -38,3 +38,11 @@ feedback?.flash('success').select(true).cancel();
 feedback?.destroy();
 // @ts-expect-error Unknown feedback signals must not be accepted.
 feedback?.flash('alarm');
+
+import { createParticleEffects, type ParticleEffects } from 'brightpixels/particles';
+const effects: ParticleEffects = createParticleEffects({ maxParticles: 1024, intensity: 8 });
+effects.burst({ x: 10, y: 20, count: 100, shape: 'spark', colors: ['red'] });
+const stopTrail = effects.trail(document.body, { lifetime: 800 });
+stopTrail(); effects.clear(); effects.destroy();
+// @ts-expect-error Unsupported particle shape.
+effects.burst({ shape: 'banana' });

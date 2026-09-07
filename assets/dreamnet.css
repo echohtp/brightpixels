@@ -7,12 +7,6 @@
 .dn-cannon h2{font-size:30px;margin:0 0 7px;color:var(--dn-pink)}
 .dn-cannon #confetti-status{font:10px 'Courier New',monospace;margin:0;color:#dfc5eb}
 [data-dreamnet] #confetti-fire{padding:20px 24px;font:bold 15px 'Courier New',monospace;color:var(--dn-lime);border-color:var(--dn-pink);background:#46114b;text-shadow:0 0 10px currentColor;box-shadow:0 0 22px #ff58db66,inset 0 0 18px #ff58db22;white-space:nowrap}
-.dn-confetti-layer{position:fixed;inset:0;z-index:100;overflow:hidden;pointer-events:none;contain:strict}
-.dn-confetti-piece{position:absolute;left:0;top:0;display:block;width:7px;height:14px;color:var(--spark-color);background:currentColor;border-radius:1px;box-shadow:0 0 5px currentColor,0 0 14px currentColor,0 0 26px currentColor;pointer-events:none}
-.dn-confetti-0{width:20px;height:20px;background:none;box-shadow:none;font:22px/1 Georgia,serif;text-shadow:0 0 6px currentColor,0 0 18px currentColor}
-.dn-confetti-2{width:8px;height:8px;border-radius:50%}
-.dn-confetti-3{width:12px;height:12px;background:none;border:2px solid currentColor;border-radius:50%}
-@supports(color:color(display-p3 1 0 0)){.dn-confetti-piece{color:var(--spark-p3)}}
 @media(max-width:650px){.dn-cannon{flex-direction:column;text-align:center;padding:20px 14px}.dn-cannon h2{font-size:27px}[data-dreamnet] #confetti-fire{width:100%;white-space:normal}}
 .dn-tron-trail{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:0}
 .dn-shell{z-index:1}

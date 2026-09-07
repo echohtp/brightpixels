@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A tiny dependency-free library for HDR text, image highlights, and native shapes.",
   "type": "module",
   "main": "./index.js",
@@ -19,6 +19,11 @@
       "types": "./react.d.ts",
       "import": "./react.js",
       "default": "./react.js"
+    },
+    "./particles": {
+      "types": "./particles.d.ts",
+      "import": "./particles.js",
+      "default": "./particles.js"
     }
   },
   "files": [
@@ -27,17 +32,22 @@
     "react.js",
     "react.d.ts",
     "README.md",
-    "LICENSE.txt"
+    "LICENSE.txt",
+    "particles.js",
+    "particles.d.ts",
+    "particles-shader.js"
   ],
   "sideEffects": [
     "./index.js",
     "./react.js"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "npm run check:particles && node --test test/*.test.mjs",
     "prepublishOnly": "npm test && npm run test:types",
     "test:types": "tsc -p test/types/tsconfig.json",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "build:particles": "node scripts/build-particles.mjs",
+    "check:particles": "node scripts/build-particles.mjs --check"
   },
   "keywords": [
     "hdr",
@@ -69,6 +79,7 @@
     "@types/react-dom": "^19.2.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "typegpu": "0.12.4",
     "typescript": "^7.0.2"
   }
 }

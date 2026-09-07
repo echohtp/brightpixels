@@ -1,4 +1,4 @@
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -41,6 +41,9 @@ export function configureBrightpixels(options = {}) {
   }
   if (["auto", "high", "low"].includes(options.quality)) configuration.quality = options.quality;
   for (const element of connectedRenderers) element._applyConfig();
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new Event("brightpixels-config-change"));
+  }
   return getBrightpixelsConfig();
 }
 function effectiveIntensity(value) { return 1 + (value - 1) * configuration.brightness; }

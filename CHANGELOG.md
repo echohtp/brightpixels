@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-09-07
+
+- Add the optional `brightpixels/particles` entry point with confetti, sparks and
+  pointer trails sharing a reusable viewport canvas per engine.
+- Compute particle motion on the GPU and render with an instanced rgba16float
+  pipeline. TypeGPU generates shader structures and buffer offsets at build time;
+  the npm package keeps zero runtime dependencies.
+- Add a capped canvas fallback, reduced-motion sparkles, lifecycle cleanup and
+  integration with global HDR, brightness and quality controls.
+- Upgrade Dreamnet’s cannon and add the particle lab with TypeScript examples.
+
+
 ## 1.0.0 — 2026-09-06
 
 First stable public API release for dependency-free HDR text, images and shapes.
