@@ -2,7 +2,7 @@
 
 Version 1.0.0 ships the documented rendering and diagnostic APIs. The real-device
 checks below remain unverified; a stable API version does not establish display
-compatibility. npm publication remains separately deferred.
+compatibility.
 
 ## Record on actual hardware
 

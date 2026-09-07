@@ -11,7 +11,6 @@ First stable public API release for dependency-free HDR text, images and shapes.
 - Capability snapshots and per-element fallback reasons, with TypeScript declarations
   and an optional React typing entry point.
 - Live playground and hardware comparison page with local JSON diagnostics.
-
 - `brightenEdges` for existing containers and `brightenFeedback` for touch, mouse
   and keyboard press, outcome and selection glow.
 - Mobile interaction recipes and downloadable neon themes with container lighting,
