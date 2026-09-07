@@ -519,12 +519,13 @@ instance for a page-wide setting; independently loaded copies have separate stat
 | --- | --- |
 | `brighten(targets, settings?)` | Wraps element contents and returns `BrightTextElement[]`. |
 | `brightenImages(targets, settings?)` | Wraps images and returns `BrightImageElement[]`. |
+| `brightenSurface(element, options?)` | Adds interactive light to a connected container and returns a controller. |
 | `defineBrightpixels()` | Registers the custom elements; registration also runs on browser import. |
 | `version` | Package version string. |
 | `configureBrightpixels(options?)` | Applies global `enabled` and `brightness` settings and returns their current values. |
 | `getBrightpixelsConfig()` | Returns a copy of the current global settings. |
 
-Both helpers accept a CSS selector, an element, or an iterable of elements. Existing Brightpixels wrappers are reused. Imports are safe in environments without a DOM; helpers return empty arrays there.
+The text and image helpers accept a CSS selector, an element, or an iterable of elements, reuse existing wrappers, and return empty arrays without a DOM. Surface creation requires a connected HTML container. All entry points are safe to import without a DOM.
 
 ### Settings and element properties
 
@@ -599,7 +600,7 @@ and fires when the reason changes, even if the mode stays `fallback`.
 ### Version 1.x compatibility
 
 The documented custom elements, configuration functions, capability snapshot,
-edge and feedback helpers, particle engine, and TypeScript/React entry points
+edge, feedback and surface helpers, particle/confetti engines, and TypeScript/React entry points
 form the 1.x public API. Version 1.3.0 preserves the existing 1.0–1.2 APIs. Breaking public API changes
 require a major version. Underscore-prefixed members are internal; browser capability
 signals and physical HDR output remain device-dependent.
