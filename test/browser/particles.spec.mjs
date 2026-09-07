@@ -39,7 +39,7 @@ test('motion preference, disable and resize keep effects bounded', async ({ page
   expect(await page.evaluate(() => effects.burst({ count: 100, reducedMotion: false }))).toBe(12);
   expect(await page.evaluate(() => effects._particles.every(p => p.vx === 0 && p.vy === 0 && p.gravity === 0 && p.spin === 0))).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => effects.activeCount)).toBe(0);
+  await expect.poll(() => page.evaluate(() => [effects.activeCount, effects.canvas.width])).toEqual([0, 390]);
   await page.evaluate(() => window.api.configureBrightpixels({ enabled: false, quality: 'low' }));
   expect(await page.evaluate(() => [effects.mode, effects.fallbackReason, effects.canvas.width])).toEqual(['fallback', 'disabled', 390]);
   await page.evaluate(() => { effects.burst(); window.dispatchEvent(new Event('blur')); });
