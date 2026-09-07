@@ -187,6 +187,21 @@ test('sequence validates bounds, aborts immediately and rejects animation errors
   })).toEqual({errors:['TypeError','TypeError','TypeError','RangeError'],cancelled:'cancelled',rejected:'renderer failed',running:false,charge:0});
 });
 
+test('charge rendering settles at the final gesture value without repeated geometry reads', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    window.refreshCount = 0;
+    const refresh = light.refresh.bind(light);
+    light.refresh = () => { refreshCount++; return refresh(); };
+    for (let value = 0; value <= 1; value += .05) light.setCharge(value);
+    light.setCharge(1);
+  });
+  await expect.poll(() => page.evaluate(() => light._uniforms[40])).toBe(1);
+  await expect.poll(() => page.evaluate(() => light.running)).toBe(false);
+  // An observer may deliver initial geometry, but progress must not remeasure for each input.
+  expect(await page.evaluate(() => refreshCount)).toBeLessThan(5);
+});
+
 test('Action Lab works on a phone, cancels on navigation and stays compact', async ({ browser }, testInfo) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
   const page = await context.newPage();

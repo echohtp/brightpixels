@@ -2046,7 +2046,13 @@ class BrightSurfaceController {
     this._wake(); return this;
   }
   /** Progress belongs to the application; the renderer adds its light. */
-  setCharge(value = 0) { return this.update({ charge: value }); }
+  setCharge(value = 0) {
+    if (this._destroyed) return this;
+    const amount = Number(value);
+    this._options.charge = Number.isFinite(amount) ? Math.max(0, Math.min(1, amount)) : SURFACE_DEFAULTS.charge;
+    // Geometry is maintained by ResizeObserver; progress needs only a new frame.
+    this._wake(); return this;
+  }
   setLoading(value = true) { return this.update({ loading: value }); }
   select(value = true) { return this.update({ selected: value }); }
   /** Link visual feedback only; application click handlers continue to own outcomes. */
