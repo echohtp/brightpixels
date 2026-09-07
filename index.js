@@ -1893,7 +1893,7 @@ class BrightSurfaceController {
     for (const key of ['spotlight','ripple','press','loading','selected','enabled']) this._options[key] = Boolean(this._options[key]);
     if (!this._options.spotlight) this._pointer = null;
     if (!this._options.ripple) this._waves = [];
-    this._setColor(this._options.color);
+    if (!this._flash) this._setColor(this._options.color);
     if (!this._options.enabled) { this._clearTransient(); this._fallback('disabled'); }
     this.refresh();
     this._wake();

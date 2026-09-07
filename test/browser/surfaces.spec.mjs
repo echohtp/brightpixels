@@ -162,6 +162,9 @@ test('React StrictMode, live props, host changes and unmount keep one working su
   await expect.poll(()=>page.evaluate(()=>surfaceRef.current?.controller?.selected)).toBe(true);
   expect(await page.evaluate(()=>surfaceRef.current.controller===original)).toBe(true);
   expect(await page.evaluate(()=>original.loading)).toBe(false);
+  await page.evaluate(()=>{original.flash('success');renderSurface({color:'#ff0000',selected:true});});
+  await expect.poll(()=>page.evaluate(()=>original._options.color)).toBe('#ff0000');
+  expect(await page.evaluate(()=>original._cssColor)).toBe('rgb(68,239,165)');
   await page.locator('#react-action').click();
   expect(await page.evaluate(()=>window.actions)).toBe(1);
   await page.evaluate(()=>renderSurface({intensity:3},'article'));
