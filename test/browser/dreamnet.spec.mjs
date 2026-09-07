@@ -5,6 +5,39 @@ async function open(page) {
   await page.goto('/dreamnet.html');
 }
 
+test('AI city archive offers understandable local story branches on desktop and phone', async ({ page }, info) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await open(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('.dn-case')).toHaveCount(3);
+  await expect(page.locator('#city-archive')).toContainText('Fiction, not a forecast.');
+  const outcomes = [
+    ['pause', 'The doors open. The queue gets longer.'],
+    ['appeal', 'A person gets time to listen.'],
+    ['measure', 'The average loses its hiding place.'],
+  ];
+  for (const [choice, title] of outcomes) {
+    await page.locator(`[data-story-choice="${choice}"]`).click();
+    await expect(page.locator('#story-outcome-title')).toHaveText(title);
+    await expect(page.locator('[data-story-choice][aria-pressed=true]')).toHaveCount(1);
+    await expect(page.locator(`[data-story-choice="${choice}"]`)).toHaveAttribute('aria-pressed', 'true');
+  }
+  await page.locator('[data-story-choice=pause]').focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#story-outcome-title')).toHaveText(outcomes[0][1]);
+  if (info.project.name === 'chromium') await page.locator('#city-archive').screenshot({ path: 'test-results/dreamnet-story.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('[data-story-choice=appeal]').click();
+  await expect(page.locator('#story-outcome-title')).toHaveText(outcomes[1][1]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  if (info.project.name === 'chromium') await page.locator('#city-archive').screenshot({ path: 'test-results/dreamnet-story-mobile.png' });
+  await page.reload();
+  await expect(page.locator('#story-outcome-title')).toHaveText('The record is still open.');
+  expect(errors).toEqual([]);
+});
+
 test('giga mode toggles and hyperspace fires on desktop and phone', async ({ page }, info) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });

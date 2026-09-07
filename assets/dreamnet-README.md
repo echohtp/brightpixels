@@ -2,6 +2,13 @@
 
 A maximalist old-web / night-drive / dreamcore remix for Brightpixels.
 
+The Guide is an original AI dystopia set in a fictional city in 2041. Read Mara's
+three recovered records and choose a first demand in the archive. The branches
+explore misleading averages, predictions that reinforce themselves and human
+review without meaningful authority. They are authored text, run entirely in the
+browser and reset on reload. No AI evaluates the reader or their choices.
+Story styling and branches live in assets/narrative.css and assets/narrative.js.
+
 Run `python3 -m http.server 8080` in this folder, then open
 http://localhost:8080/dreamnet.html.
 
