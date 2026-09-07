@@ -1,7 +1,7 @@
 {
   "name": "brightpixels",
-  "version": "1.1.0",
-  "description": "A tiny dependency-free library for HDR text, image highlights, and native shapes.",
+  "version": "1.2.0",
+  "description": "Dependency-free HDR text, images, shapes, interaction feedback, and particles, with optional React confetti.",
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
@@ -24,6 +24,16 @@
       "types": "./particles.d.ts",
       "import": "./particles.js",
       "default": "./particles.js"
+    },
+    "./confetti": {
+      "types": "./confetti.d.ts",
+      "import": "./confetti.js",
+      "default": "./confetti.js"
+    },
+    "./react-confetti": {
+      "types": "./react-confetti.d.ts",
+      "import": "./react-confetti.js",
+      "default": "./react-confetti.js"
     }
   },
   "files": [
@@ -35,17 +45,22 @@
     "LICENSE.txt",
     "particles.js",
     "particles.d.ts",
-    "particles-shader.js"
+    "particles-shader.js",
+    "confetti.js",
+    "confetti.d.ts",
+    "react-confetti.js",
+    "react-confetti.d.ts"
   ],
   "sideEffects": [
     "./index.js",
     "./react.js"
   ],
   "scripts": {
-    "test": "npm run check:particles && node --test test/*.test.mjs",
+    "test": "npm run check:particles && node scripts/build-confetti-demo.mjs --check && node --test test/*.test.mjs",
     "prepublishOnly": "npm test && npm run test:types",
     "test:types": "tsc -p test/types/tsconfig.json",
-    "test:browser": "playwright test",
+    "test:browser": "node scripts/build-confetti-demo.mjs --test && playwright test",
+    "build:confetti-demo": "node scripts/build-confetti-demo.mjs",
     "build:particles": "node scripts/build-particles.mjs",
     "check:particles": "node scripts/build-particles.mjs --check"
   },
@@ -73,10 +88,19 @@
   "publishConfig": {
     "access": "public"
   },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "esbuild": "0.28.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typegpu": "0.12.4",

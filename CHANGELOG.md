@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — 2026-09-07
+
+- Add `brightpixels/confetti` and optional `brightpixels/react-confetti` with a
+  falling HDR shower, recycling, pause/resume, source rectangles, colors, wind,
+  completion callbacks, and a restart handle.
+- Add tumbling paper, exact initial velocities, horizontal acceleration, opacity,
+  and pause/resume to the existing particle engine. TypeGPU generates its updated layout.
+- Preserve SSR safety and React Strict Mode cleanup. React 18/19 is an optional
+  peer; the vanilla entries keep zero runtime dependencies.
+- Add the React confetti demo, migration notes, bounded fallback emission, and
+  reduced-motion behavior.
+
 ## 1.1.0 — 2026-09-07
 
 - Add the optional `brightpixels/particles` entry point with confetti, sparks and

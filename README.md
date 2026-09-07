@@ -2,11 +2,20 @@
 
 Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, interaction feedback, and particles. Brightpixels uses extended-range WebGPU rendering, with ordinary-color fallbacks when HDR rendering is unavailable.
 
-**Current release: 1.1.0** — [Published on npm](https://www.npmjs.com/package/brightpixels/v/1.1.0) · [GitHub release](https://github.com/echohtp/brightpixels/releases/tag/v1.1.0)
+**Version 1.2.0** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
 
 [Main demo](https://echohtp.github.io/brightpixels/) · [HDR particle lab](https://echohtp.github.io/brightpixels/particles.html) · [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 1.1.0
+## What's new in 1.2.0
+
+- A falling HDR confetti shower with recycling, pause/resume, wind, source regions, and tumbling paper.
+- Optional `<BrightConfetti />` for React 18/19, with live props, a restart ref, completion callbacks, and cleanup on unmount.
+- The same controller without React through `brightpixels/confetti`.
+- Automatic viewport sizing, bounded fallback rendering, and one stationary sparkle batch for reduced motion.
+
+[Try React confetti](https://echohtp.github.io/brightpixels/confetti.html) · [API and migration notes](#confetti-and-react)
+
+## Included from 1.1.0
 
 - Optional `brightpixels/particles` module for HDR confetti, sparks and mouse trails.
 - One reusable viewport canvas per engine, with GPU-computed motion and instanced drawing.
@@ -31,7 +40,7 @@ Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, in
 npm install brightpixels
 ```
 
-For an exact version, use `npm install brightpixels@1.1.0`.
+For an exact version, use `npm install brightpixels@1.2.0`.
 
 Import the package once to register `<bright-text>`, `<bright-image>`, and `<bright-shape>`:
 
@@ -45,7 +54,9 @@ Import the optional particle engine when you need confetti, sparks, or mouse tra
 import { createParticleEffects } from "brightpixels/particles";
 ```
 
-The main import does not load particle code. Both entry points include TypeScript declarations and have zero runtime dependencies.
+The main import does not load particle code. The core, particles, and vanilla confetti
+entry points include TypeScript declarations and have zero runtime dependencies.
+The optional React confetti component uses your application's React 18 or 19 installation.
 
 For a page without a bundler, copy `index.js` from this repository and load it as a module:
 
@@ -491,7 +502,7 @@ and fires when the reason changes, even if the mode stays `fallback`.
 
 The documented custom elements, configuration functions, capability snapshot,
 edge and feedback helpers, particle engine, and TypeScript/React entry points
-form the 1.x public API. Version 1.1.0 preserves the existing 1.0 APIs. Breaking public API changes
+form the 1.x public API. Version 1.2.0 preserves the existing 1.0 and 1.1 APIs. Breaking public API changes
 require a major version. Underscore-prefixed members are internal; browser capability
 signals and physical HDR output remain device-dependent.
 
@@ -645,3 +656,94 @@ real-device speedup is claimed.
 For contributors, `npm run build:particles` regenerates `particles-shader.js`
 using pinned TypeGPU tooling. `npm test` checks generated output is current. The
 published package includes generated WGSL, not the TypeGPU runtime.
+
+## Confetti and React
+
+[Try the interactive React demo](https://echohtp.github.io/brightpixels/confetti.html).
+
+```jsx
+import { useState } from 'react';
+import BrightConfetti from 'brightpixels/react-confetti';
+
+export function Celebrate() {
+  const [celebrating, setCelebrating] = useState(false);
+  return <>
+    <button onClick={() => setCelebrating(true)}>Celebrate</button>
+    {celebrating && <BrightConfetti
+      numberOfPieces={200}
+      recycle={false}
+      intensity={8}
+      onConfettiComplete={() => setCelebrating(false)}
+    />}
+  </>;
+}
+```
+
+The component renders nothing during server rendering and creates its canvas after
+mounting. It supports React Strict Mode and destroys its canvas, timers, listeners,
+and GPU resources on unmount. React is an optional peer dependency: vanilla users
+do not need to install it. Keep using `brightpixels/react` for the existing custom
+element typings; the confetti component has its own entry point.
+
+For a persistent component, pass a `ref` and call `ref.current.restart()` to start
+another celebration, or `ref.current.clear()` to stop and clear it. The ref also
+exposes `activeCount`, `emittedCount`, `mode`, and `running`.
+
+Without React:
+
+```js
+import { createConfetti } from 'brightpixels/confetti';
+
+const options = { numberOfPieces: 200, recycle: false, intensity: 8 };
+const confetti = createConfetti(options);
+await confetti.ready;
+confetti.update({ ...options, run: false }); // pause and freeze existing pieces
+confetti.update({ ...options, run: true });  // continue without aging during pause
+confetti.restart();                         // new batch
+// On page/component teardown:
+confetti.destroy();
+```
+
+`update(options)` replaces the options object; omitted fields return to defaults.
+The controller exposes the React ref properties plus `ready`, `canvas`, and
+`fallbackReason`. Each instance owns one fixed, pointer-inert viewport canvas.
+
+| Option | Default | Behavior |
+| --- | --- | --- |
+| `numberOfPieces`, `recycle`, `run` | `200`, `true`, `true` | Target concurrent count when recycling; total emitted for a one-shot. `run={false}` pauses. Set count to zero to stop emitting and let existing pieces finish. |
+| `colors`, `opacity`, `intensity`, `shape`, `size` | Neon palette, `1`, `8`, `confetti`, `5` | New-particle appearance. Shapes: `confetti`, `spark`, `dot`. Intensity is clamped to 1–16, opacity to 0–1, size to 1–24 CSS pixels. |
+| `confettiSource` | Full top edge | `{ x, y, w, h }` rectangle in viewport CSS pixels. Omit for automatic viewport width. |
+| `gravity`, `wind`, `initialVelocityX`, `initialVelocityY` | `0.1`, `0`, `4`, `10` | Familiar 60 Hz confetti units, converted to elapsed-time motion. Velocity can be a number or `{ min, max }`; numeric X means `[-n,n]`, numeric Y means `[-n,0]`. |
+| `tweenDuration`, `lifetime` | `1500`, `5000` ms | Linear emission ramp and maximum particle lifetime. Zero ramp emits immediately; lifetimes range from 80–100% of the requested value, clamped to 100–10000 ms. |
+
+`onReady(controller)` fires once after initial renderer setup.
+`onConfettiComplete(controller)` fires once when a batch naturally finishes:
+emission has ended and all its particles have expired. It does not fire for an
+empty batch, explicit clear, unmount, or cancellation by resize, blur, or hiding.
+Recycling resumes on return to a visible, focused page; interrupted one-shots stay
+stopped. Change visual/physics props for future pieces, or restart to apply them
+to a fresh batch. Use global brightness controls for live light adjustments.
+
+Counts are capped at 2048; fallback rendering allows at most 256 simultaneous
+pieces. Larger fallback one-shots emit their remaining pieces as capacity frees.
+Reduced motion overrides recycling with one batch of up to 12 stationary sparkles.
+No emission timer or drawing loop continues after completion, clear, or unmount.
+
+### Moving from react-confetti
+
+This is an independent implementation informed by
+[react-confetti's documented API](https://github.com/alampros/react-confetti).
+Common controls retain familiar names, but this is not a drop-in replacement:
+
+- The canvas follows the viewport automatically; `width`, `height`, canvas styles,
+  arbitrary container clipping, and canvas refs are not supported.
+- `drawShape`, `friction`, `tweenFunction`, `frameRate`, and `debug` are not
+  implemented. Motion uses an analytic GPU trajectory and the emission ramp is linear.
+- Completion follows particle lifetime rather than detecting that every piece has
+  left the canvas. The callback receives a Brightpixels controller.
+- Source, appearance, and physics changes affect future particles. The existing
+  renderer provides HDR, fallbacks, and global quality controls.
+
+For contributors, `npm run build:confetti-demo` builds the self-contained React demo.
+The browser suite builds a separate development fixture to exercise Strict Mode.
+Neither demo bundle nor build tooling is included in the npm package.

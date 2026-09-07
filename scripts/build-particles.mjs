@@ -3,7 +3,7 @@ import tgpu from 'typegpu';
 import * as d from 'typegpu/data';
 
 // One schema drives WGSL declarations and the runtime buffer layout.
-const fields = { origin: d.vec4f, motion: d.vec4f, style: d.vec4f, color: d.vec4f };
+const fields = { origin: d.vec4f, motion: d.vec4f, style: d.vec4f, color: d.vec4f, drift: d.vec4f };
 const Particle = d.struct(fields).$name('Particle');
 const Frame = d.struct({ view: d.vec4f }).$name('Frame');
 let offset = 0;
@@ -27,9 +27,11 @@ struct Output {
   let local = corners[vertex];
   let age = max(0., frame.view.z - p.motion.x);
   let life = clamp(age / p.motion.y, 0., 1.);
-  let center = p.origin.xy + p.origin.zw * age + vec2f(0., p.motion.z * age * age * 0.5);
+  let center = p.origin.xy + p.origin.zw * age + vec2f(p.drift.x, p.motion.z) * age * age * 0.5;
   let angle = p.style.z + p.motion.w * age;
-  let rotated = vec2f(local.x * cos(angle) - local.y * sin(angle), local.x * sin(angle) + local.y * cos(angle));
+  let flip = select(1., cos(p.style.z + p.drift.y * age), p.drift.y > 0.);
+  let folded = vec2f(local.x, local.y * flip);
+  let rotated = vec2f(folded.x * cos(angle) - folded.y * sin(angle), folded.x * sin(angle) + folded.y * cos(angle));
   let pixel = center + rotated * p.style.x;
   var out: Output;
   out.position = vec4f(pixel.x / frame.view.x * 2. - 1., 1. - pixel.y / frame.view.y * 2., 0., 1.);

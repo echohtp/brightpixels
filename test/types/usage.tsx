@@ -46,3 +46,18 @@ const stopTrail = effects.trail(document.body, { lifetime: 800 });
 stopTrail(); effects.clear(); effects.destroy();
 // @ts-expect-error Unsupported particle shape.
 effects.burst({ shape: 'banana' });
+
+import BrightConfetti, { type BrightConfettiHandle } from 'brightpixels/react-confetti';
+import { createConfetti } from 'brightpixels/confetti';
+const confettiRef = createRef<BrightConfettiHandle>();
+export const Celebration = () => <BrightConfetti ref={confettiRef} numberOfPieces={200}
+  recycle={false} intensity={8} initialVelocityY={{ min: -10, max: -4 }}
+  onConfettiComplete={controller => controller.destroy()}/>;
+confettiRef.current?.restart();
+const shower = createConfetti({ confettiSource: { x: 0, y: 0, w: 300, h: 0 }, run: false });
+shower.update({ run: true }); shower.clear().restart(); shower.destroy();
+effects.pause(); effects.resume(); effects.burst({ velocityX: 30, wind: 20, flutter: true, opacity: .5 });
+// @ts-expect-error Canvas callbacks cannot be passed to the HDR renderer.
+export const UnsupportedConfetti = <BrightConfetti drawShape={() => {}}/>;
+// @ts-expect-error The viewport layer sizes itself; arbitrary canvas dimensions are not supported.
+export const UnsupportedDimensions = <BrightConfetti width={300}/>;

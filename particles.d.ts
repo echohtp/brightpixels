@@ -16,6 +16,15 @@ export interface ParticleBurstOptions {
   intensity?: number;
   /** Initial speed in CSS pixels/second. */
   speed?: number;
+  /** Optional exact initial velocity in CSS pixels/second, overriding speed/angle. */
+  velocityX?: number;
+  velocityY?: number;
+  /** Horizontal acceleration in CSS pixels/second squared. */
+  wind?: number;
+  /** Fold rotating particles for a tumbling paper effect. Default false. */
+  flutter?: boolean;
+  /** Multiplies particle alpha, 0–1. Default 1. */
+  opacity?: number;
   /** Direction in degrees; -90 points up. */
   angle?: number;
   spread?: number;
@@ -43,6 +52,10 @@ export interface ParticleEffects {
   burst(options?: ParticleBurstOptions): number;
   /** Attach a mouse trail and return an idempotent stop function. Default target: window. */
   trail(target?: Window | HTMLElement, options?: ParticleBurstOptions): () => void;
+  /** Freeze particles and stop frames. Bursts emit nothing while paused. */
+  pause(): void;
+  /** Continue paused particles without advancing their age during the pause. */
+  resume(): void;
   clear(): void;
   destroy(): void;
 }

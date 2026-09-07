@@ -16,7 +16,7 @@ class ParticleEffects {
     this.maxParticles = Math.round(limit(options.maxParticles, 1, 2048, 1024));
     this.intensity = limit(options.intensity, 1, 16, 6);
     this._particles = []; this._stops = new Set(); this._listeners = [];
-    this._frame = 0; this._generation = 0; this._destroyed = false; this._gpu = null; this._dirty = true;
+    this._frame = 0; this._generation = 0; this._destroyed = false; this._gpu = null; this._dirty = true; this._pausedAt = null;
     this._mode = 'fallback'; this._reason = 'webgpu-unavailable';
     this._data = new Float32Array(this.maxParticles * PARTICLE_FLOATS);
     this._uniforms = new Float32Array(FRAME_FLOATS);
@@ -138,7 +138,7 @@ class ParticleEffects {
     this._colors.set(key, color); return color;
   }
   burst(options = {}) {
-    if (this._destroyed || document.hidden) return 0;
+    if (this._destroyed || document.hidden || this._pausedAt !== null) return 0;
     const reduced = options.reducedMotion === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
     const capacity = this.mode === 'hdr' ? this.maxParticles : Math.min(256, this.maxParticles);
     const count = Math.round(limit(options.count, 0, reduced ? Math.min(12, capacity) : capacity, reduced ? Math.min(12, capacity) : Math.min(120, capacity)));
@@ -159,7 +159,8 @@ class ParticleEffects {
       const direction = angle + (Math.random() - .5) * spread, velocity = speed * (.6 + Math.random() * .4);
       const color = this._color(colors[i % colors.length]);
       const p = { x: x + (reduced ? Math.cos(i / count * Math.PI * 2) * 30 : 0), y: y + (reduced ? Math.sin(i / count * Math.PI * 2) * 30 : 0),
-        vx: Math.cos(direction) * velocity, vy: Math.sin(direction) * velocity, birth: now, life: lifetime * (.8 + Math.random() * .2), gravity,
+        vx: reduced ? 0 : limit(options.velocityX, -3000, 3000, Math.cos(direction) * velocity), vy: reduced ? 0 : limit(options.velocityY, -3000, 3000, Math.sin(direction) * velocity), birth: now, life: lifetime * (.8 + Math.random() * .2), gravity,
+        wind: reduced ? 0 : limit(options.wind, -3000, 3000, 0), flutter: !reduced && options.flutter ? 4 + Math.random() * 4 : 0, opacity: limit(options.opacity, 0, 1, 1),
         spin: reduced ? 0 : (Math.random() - .5) * 10, size: size * (.6 + Math.random() * .4), angle: Math.random() * Math.PI * 2, kind, intensity, color };
       this._particles.push(p);
     }
@@ -179,7 +180,7 @@ class ParticleEffects {
     this._stops.add(stop); return stop;
   }
   _wake() {
-    if (this._destroyed || !this._particles.length || this._frame || document.hidden) return;
+    if (this._destroyed || this._pausedAt !== null || !this._particles.length || this._frame || document.hidden) return;
     this._canvas.style.visibility = 'visible';
     this._frame = requestAnimationFrame(now => this._draw(now / 1000));
   }
@@ -203,7 +204,8 @@ class ParticleEffects {
         this._data.set([p.x, p.y, p.vx, p.vy], start + OFFSETS.origin);
         this._data.set([p.birth, p.life, p.gravity, p.spin], start + OFFSETS.motion);
         this._data.set([p.size, p.kind, p.angle, p.intensity], start + OFFSETS.style);
-        this._data.set(p.color.gpu, start + OFFSETS.color);
+        this._data.set([p.color.gpu[0], p.color.gpu[1], p.color.gpu[2], p.color.gpu[3] * p.opacity], start + OFFSETS.color);
+        this._data.set([p.wind, p.flutter, 0, 0], start + OFFSETS.drift);
       });
       gpu.device.queue.writeBuffer(gpu.buffer, 0, this._data, 0, this._particles.length * PARTICLE_FLOATS);
       this._dirty = false;
@@ -221,13 +223,25 @@ class ParticleEffects {
     ctx.scale(this._scale, this._scale);
     for (const p of this._particles) {
       const age = now - p.birth, t = Math.max(0, Math.min(1, (age / p.life - .55) / .45));
-      ctx.save(); ctx.globalAlpha = (1 - t * t * (3 - 2 * t)) * p.color.gpu[3];
-      ctx.translate(p.x + p.vx * age, p.y + p.vy * age + p.gravity * age * age / 2); ctx.rotate(p.angle + p.spin * age);
+      ctx.save(); ctx.globalAlpha = (1 - t * t * (3 - 2 * t)) * p.color.gpu[3] * p.opacity;
+      ctx.translate(p.x + p.vx * age + p.wind * age * age / 2, p.y + p.vy * age + p.gravity * age * age / 2); ctx.rotate(p.angle + p.spin * age);
+      if (p.flutter) ctx.scale(1, Math.cos(p.angle + p.flutter * age));
       ctx.fillStyle = p.color.css; ctx.shadowColor = p.color.css; ctx.shadowBlur = p.size * 3;
       if (p.kind === 0) ctx.fillRect(-p.size / 2, -p.size, p.size, p.size * 2);
       else { ctx.beginPath(); if (p.kind === 2) ctx.arc(0, 0, p.size * .7, 0, Math.PI * 2); else { ctx.moveTo(0, -p.size); ctx.lineTo(p.size, 0); ctx.lineTo(0, p.size); ctx.lineTo(-p.size, 0); ctx.closePath(); } ctx.fill(); }
       ctx.restore();
     }
+  }
+  pause() {
+    if (this._destroyed || this._pausedAt !== null) return;
+    this._pausedAt = performance.now() / 1000;
+    cancelAnimationFrame(this._frame); this._frame = 0;
+  }
+  resume() {
+    if (this._destroyed || this._pausedAt === null) return;
+    const elapsed = performance.now() / 1000 - this._pausedAt;
+    for (const particle of this._particles) particle.birth += elapsed;
+    this._pausedAt = null; this._dirty = true; this._wake();
   }
   clear() {
     cancelAnimationFrame(this._frame); this._frame = 0; this._particles.length = 0; this._dirty = true;
