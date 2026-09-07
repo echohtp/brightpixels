@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Hold to charge a card. Release to send a wave through your UI and launch HDR confetti from the button. Brightpixels 1.4 interaction helpers.">
+  <title>Brightpixels 1.4 — Chain reaction</title>
+  <link rel="stylesheet" href="./assets/surfaces-demo.css?v=1.4.0">
+  <link rel="stylesheet" href="./assets/actions-demo.css?v=1.4.0">
+  <link rel="stylesheet" href="./assets/demo-controls.css?v=1.4.0">
+  <script type="module" src="./assets/actions-demo.js?v=1.4.0"></script>
+</head>
+<body>
+  <header class="shell masthead"><a class="brand" href="./">Brightpixels<span>®ish</span></a><nav><a href="./surfaces.html">Surfaces</a><a href="./confetti.html">Confetti</a><a href="https://github.com/echohtp/brightpixels">GitHub ↗</a></nav></header>
+  <main class="shell">
+    <section class="intro"><p class="eyebrow"><span class="signal-dot"></span> BRIGHTPIXELS 1.4.0 / ACTION LAB</p><h1>ONE TOUCH.<br><em>CHAIN REACTION.</em></h1><p class="action-intro">Hold. Release. Light the entire operation.</p></section>
+    <div class="settings"><label><input id="effects-enabled" type="checkbox" checked> Effects</label><label><input id="hdr-enabled" type="checkbox" checked> HDR</label><span id="renderer-status">Starting light…</span></div>
+    <section id="reactor" class="reactor" aria-label="Hold to start a chain reaction">
+      <div class="reactor-top"><span>MANUAL OVERRIDE</span><output id="hold-value" aria-hidden="true">0%</output></div>
+      <h2>APPLY HUMAN<br><em>PRESSURE.</em></h2><p>One small button. An unreasonable response.</p>
+      <div class="reactor-controls"><button id="hold-launch" class="primary" type="button" aria-describedby="hold-help">HOLD TO OVERLOAD ↗</button><button id="cancel-action" type="button">Cancel</button></div>
+      <p id="hold-help" class="hold-help">Hold for 0.7 seconds, then release. Keyboard: hold Space or Enter.</p>
+      <p id="action-status" class="status" role="status">Awaiting your extremely valuable input.</p>
+    </section>
+    <div class="relay-strip" aria-label="Linked surfaces"><article class="relay"><span>01 / INPUT</span><strong>RECEIVED ↗</strong><small>Human detected.</small></article><article class="relay"><span>02 / APPROVAL</span><strong>PROBABLY ✓</strong><small>Confidence was cheaper.</small></article><article class="relay"><span>03 / OUTPUT</span><strong>EXCESSIVE ✳</strong><small>Working as overdesigned.</small></article></div>
+    <p class="flow-caption">CHARGE → SIMULATED SAVE → LIGHT WAVE → HDR CONFETTI</p>
+    <details class="helper-disclosure"><summary>Try each helper <span>Save / swipe / drag / sparks</span></summary>
+      <div class="helper-grid">
+        <section id="save-card" class="helper-card"><p class="eyebrow">PROMISE FEEDBACK</p><h2>WORK. THEN GLOW.</h2><p>Loading follows a simulated request. The result chooses the light.</p><div class="mini-actions"><button id="save-success" type="button">Save ✓</button><button id="save-error" type="button">Try error</button></div><p id="save-status" class="status" role="status">No request running.</p></section>
+        <section id="swipe-card" class="helper-card"><p class="eyebrow">SWIPE TO CONFIRM</p><h2>SLIDE INTO POWER.</h2><label for="swipe-confirm">Swipe all the way right, then release.</label><input id="swipe-confirm" type="range" min="0" max="100" value="0" aria-describedby="swipe-help"><p id="swipe-help">Keyboard: arrows or End, then Enter.</p><p id="swipe-status" class="status" role="status">Your thumb has clearance.</p></section>
+        <section id="drag-card" class="helper-card"><p class="eyebrow">DRAG-DRIVEN LIGHT</p><h2>MOVE THE ENERGY.</h2><div id="drag-control" class="drag-control" role="slider" tabindex="0" aria-label="Temporary light charge" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-describedby="drag-help"><span aria-hidden="true">← DRAG TO CHARGE →</span><output id="drag-value" aria-hidden="true">0%</output></div><p id="drag-help">Arrows adjust; Enter releases. Escape cancels. Page scroll still works.</p></section>
+        <section id="spark-card" class="helper-card"><p class="eyebrow">ELEMENT EMITTERS</p><h2>SPARK THE EDGES.</h2><p>The engine reads the current card position on every burst.</p><div class="mini-actions"><button id="spark-left" type="button">← Left edge</button><button id="spark-top" type="button">Top ↑</button><button id="spark-right" type="button">Right →</button></div></section>
+      </div>
+    </details>
+    <details class="code-disclosure"><summary>Use it in your project <span>Zero new runtime dependencies</span></summary><pre><code>import { brightenSurface } from 'brightpixels';
+import { bindHold, trackAction } from 'brightpixels/interactions';
+import { createParticleEffects } from 'brightpixels/particles';
+
+const light = brightenSurface(card);
+const particles = createParticleEffects();
+const hold = bindHold(button, {
+  surface: light,
+  onComplete: () =&gt; {
+    trackAction(light, save()).then(() =&gt; {
+      particles.burstFrom(button, { count: 120 });
+    }).catch(showError);
+  },
+});
+// On unmount: hold.destroy(); light.destroy(); particles.destroy();</code></pre></details>
+    <p class="support-note">HDR on compatible displays. Neon fallback elsewhere. Reduced motion gets static feedback. <a href="https://github.com/echohtp/brightpixels#interaction-helpers">Full API ↗</a></p>
+  </main>
+  <footer class="shell">Brightpixels · Light is a feature. <a href="./surfaces.html">More surface effects ↗</a></footer>
+</body>
+</html>

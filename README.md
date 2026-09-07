@@ -2,15 +2,17 @@
 
 Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, interaction feedback, and particles. Brightpixels uses extended-range WebGPU rendering, with ordinary-color fallbacks when HDR rendering is unavailable.
 
-**Version 1.3.2** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
+**Version 1.4.0** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
 
 [Main demo](https://echohtp.github.io/brightpixels/) · [HDR particle lab](https://echohtp.github.io/brightpixels/particles.html) · [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 1.3.2
+## What's new in 1.4.0
 
-- A compact surface lab with Burst, Draw & charge, and Feedback panels; settings persist while inactive effects stop rendering.
-- Phone-sized controls and tap-release sweeps, plus confetti tuning and code examples available on demand.
-- A shorter main navigation with every existing demo in an expandable directory.
+- `trackAction` follows real promises: loading light, success or error, with stale-response protection.
+- `burstFrom` launches HDR confetti or sparks from an element's current center or edge.
+- `bindHold`, `bindSwipe` and `bindDrag` connect touch and keyboard gestures to surface charge.
+- `createEffectSequence` coordinates finite charge, sweep, group and particle effects, with replay and cancellation.
+- A compact [Action Lab](https://echohtp.github.io/brightpixels/actions.html), thicker finger trails, and lifecycle checks across Chromium and WebKit.
 
 ## Interactive effects from 1.3
 
@@ -56,7 +58,7 @@ Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, in
 npm install brightpixels
 ```
 
-For an exact version, use `npm install brightpixels@1.3.2`.
+For an exact version, use `npm install brightpixels@1.4.0`.
 
 Import the package once to register `<bright-text>`, `<bright-image>`, and `<bright-shape>`:
 
@@ -79,6 +81,133 @@ For a page without a bundler, copy `index.js` from this repository and load it a
 ```html
 <script type="module" src="./index.js"></script>
 ```
+
+## Interaction helpers
+
+[Try the chain reaction](https://echohtp.github.io/brightpixels/actions.html).
+
+```js
+import { brightenSurface } from 'brightpixels';
+import { trackAction, bindHold } from 'brightpixels/interactions';
+import { createParticleEffects } from 'brightpixels/particles';
+
+const light = brightenSurface(card, { intensity: 10 });
+const particles = createParticleEffects();
+const feedbackAbort = new AbortController();
+const hold = bindHold(button, {
+  surface: light,
+  duration: 700,
+  onComplete: () => {
+    // Your application starts the action and handles its result.
+    trackAction(light, save(), { signal: feedbackAbort.signal })
+      .then(() => {
+        if (!feedbackAbort.signal.aborted) particles.burstFrom(button, { count: 120 });
+      })
+      .catch(showError);
+  },
+});
+// On unmount:
+feedbackAbort.abort(); hold.destroy(); particles.destroy(); light.destroy();
+```
+
+The optional `brightpixels/interactions` entry has TypeScript declarations, no
+runtime dependencies and no import-time DOM work. It does not load the particle
+renderer; import `brightpixels/particles` when a sequence needs particles.
+
+### Action feedback
+
+`trackAction(surface, promise, { signal, success, error })` returns a promise with
+the original value or rejection. The newest tracked request owns that surface's
+loading and outcome light; older responses never overwrite it. Outcomes default
+to `success` / `error`; either can be a surface flash kind or `false`. An
+`AbortError` produces no error flash.
+
+Aborting the signal, scrolling, resizing, hiding/removing the target or leaving
+the page stops the feedback. **It does not abort your request or change its
+result.** Pass your own AbortSignal to `fetch` to cancel application work. Your
+app owns `aria-busy`, status text and concurrency decisions.
+
+### Touch and keyboard bindings
+
+| Helper | Element and interaction |
+| --- | --- |
+| `bindHold(button, options)` | Native button. Hold pointer, Space or Enter; release at full charge to complete. Assistive-technology click activates directly. |
+| `bindSwipe(range, options)` | Native `input[type="range"]`. Reach its maximum and release. Keyboard arrows or End adjust; Enter confirms. Partial gestures reset to minimum. |
+| `bindDrag(region, options)` | Existing region. Drag horizontally (or `{ axis: 'y' }`); arrows adjust by 10%, Home/End select bounds, Enter commits. |
+
+All three accept `{ surface, signal, onProgress, onComplete, onCancel }` and
+return `{ active, progress, cancel(), destroy() }`. `surface` is optional;
+`onProgress` receives 0–1, then zero on release/cancel. `onComplete` receives the
+final progress, once, after reset. Charge is temporary; selection is unchanged.
+Use `onComplete` for the gesture's application action, rather than a separate
+click handler. The binding never invokes existing click handlers itself.
+
+Holds default to 700ms (150–5000ms), with an 18px movement tolerance (4–100px).
+Scroll, resize, blur, pointer cancellation, Escape, disabled/hidden/detached
+targets and abort cancel active gestures. Destroy removes bindings. Vertical
+page scrolling stays available during a horizontal drag; the helper restores
+the previous inline `touch-action` when destroyed.
+
+For a drag region, provide your own focusability and semantics. For example,
+use `role="slider"`, `tabindex="0"`, a label and `aria-valuemin/max/now`; update
+`aria-valuenow` in `onProgress`. Prefer the native range swipe when it fits.
+Reduced motion preserves gesture timing and application callbacks; surfaces
+show static charge and outcome light instead of travelling effects.
+
+### Element particle origins
+
+```js
+particles.burstFrom(button, { count: 120, flutter: true });
+particles.burstFrom(card, { edge: 'right', shape: 'spark', count: 60 });
+```
+
+`edge` is `center` (default), `top`, `right`, `bottom` or `left`. Bursts start at
+the center or edge midpoint and point outward unless `angle` is supplied.
+Options otherwise match `burst`, except `x`/`y`: the engine measures current
+viewport bounds on each call, including CSS transforms, scroll and resize.
+Hidden, detached, zero-sized and offscreen elements emit nothing. Paused or
+destroyed engines also emit nothing. Existing particle caps, fallbacks and
+stationary reduced-motion sparkles still apply.
+
+### Effect sequences
+
+```js
+import { createEffectSequence } from 'brightpixels/interactions';
+import { createSurfaceGroup } from 'brightpixels';
+
+const group = createSurfaceGroup(neighboringSurfaceControllers);
+const sequence = createEffectSequence([
+  { effect: 'charge', surface: light, value: 1, duration: 350 },
+  { effect: 'sweep', surface: light, duration: 400 },
+  { effect: 'group', group, options: { from: 'start', stagger: 80 }, duration: 250 },
+  { effect: 'particles', engine: particles, target: button, options: { count: 120 } },
+  { effect: 'charge', surface: light, value: 0, duration: 200 },
+]);
+const result = await sequence.play({ signal: feedbackAbort.signal });
+// result is 'completed' or 'cancelled'. Replay cancels the previous run.
+sequence.cancel();
+// On unmount: sequence.destroy(); group.destroy(); clean up your controllers.
+```
+
+Steps support `charge`, `sweep`, `flash`, `ripple`, `group`, `particles` and
+`wait`. Sequences accept 1–64 steps, at most 5 seconds per step and 30 seconds
+total. `duration` is the charge animation length or the delay before the next
+step; it also sets sweep length (the renderer limits sweeps to 150–1500ms).
+Defaults: charge 400ms, sweep 500ms, wait 100ms, other steps zero. Add a duration
+if the next effect should wait for a flash, ripple or group wave to finish.
+
+`play()` resolves once steps and delays have dispatched. Emitted particles and
+already-started group effects finish on their own. Cancellation removes queued
+steps/group responses, cancels transient effects on touched individual surfaces
+and restores their pre-run charge. It never destroys borrowed controllers or
+clears another burst from a shared particle engine. Reserve those surfaces'
+transient feedback for the sequence while it runs; do not concurrently track an
+action on the same surface. Unexpected renderer errors reject `play()`.
+
+Scroll, resize, blur, hidden/detached targets, an aborted signal or a change to
+reduced motion cancels a run. In reduced motion, charge changes immediately,
+sweeps become static flashes, group staggering stops, particles stay stationary,
+and animated delays disappear. Explicit `wait` steps retain their duration.
 
 ## Interactive surfaces
 

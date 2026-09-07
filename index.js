@@ -1,4 +1,4 @@
-const VERSION = "1.3.2";
+const VERSION = "1.4.0";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -2086,7 +2086,7 @@ class BrightSurfaceController {
     if (this._tracePoint && !reduced) {
       const point = this._local(this._tracePoint.clientX,this._tracePoint.clientY), last = this._traces.at(-1);
       if (!last || Math.hypot(point.x-last.x,point.y-last.y) >= 2) {
-        this._traces.push({ ...point, start: now });
+        this._traces.push({ ...point, radius: this._tracePoint.touch ? 4 : 2.5, start: now });
         if (this._traces.length > 12) this._traces.shift();
       }
     }
@@ -2111,7 +2111,7 @@ class BrightSurfaceController {
     u.set([...this._endColor,this._gradient ? 1 : 0],32);
     if (this._sweep) u.set([Math.max(0,(now-this._sweep.start)/this._sweep.duration),this._alpha,Math.cos(this._sweep.angle),Math.sin(this._sweep.angle)],36);
     u.set([this._options.charge,this._options.charge > 0 ? this._alpha : 0,0,0],40);
-    this._traces.forEach((point,i) => u.set([point.x,point.y,2.5,Math.max(0,1-(now-point.start)/this._options.trailLifetime)**2*this._alpha],44+i*4));
+    this._traces.forEach((point,i) => u.set([point.x,point.y,point.radius || 2.5,Math.max(0,1-(now-point.start)/this._options.trailLifetime)**2*this._alpha],44+i*4));
     if (this._gpu) {
       try { this._drawGPU(); } catch { this._fallback('renderer-error'); }
     }

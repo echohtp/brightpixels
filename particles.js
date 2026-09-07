@@ -167,6 +167,18 @@ class ParticleEffects {
     if (this._particles.length > capacity) this._particles.splice(0, this._particles.length - capacity);
     this._dirty = true; this._wake(); return count;
   }
+  /** Read the current element bounds at emission time, including after scroll/resize. */
+  burstFrom(target, options = {}) {
+    if (this._destroyed || this._pausedAt !== null || document.hidden) return 0;
+    if (!(target instanceof Element)) throw new TypeError('burstFrom expects a DOM element.');
+    if (!target.isConnected || target.closest('[hidden], [inert]') || !target.getClientRects().length || getComputedStyle(target).visibility === 'hidden') return 0;
+    const rect = target.getBoundingClientRect();
+    if (!rect.width || !rect.height || rect.bottom <= 0 || rect.right <= 0 || rect.top >= innerHeight || rect.left >= innerWidth) return 0;
+    const edges = { center: [.5, .5, -90], top: [.5, 0, -90], right: [1, .5, 0], bottom: [.5, 1, 90], left: [0, .5, 180] };
+    const origin = edges[options.edge] || edges.center;
+    return this.burst({ ...options, angle: options.angle ?? origin[2],
+      x: rect.left + rect.width * origin[0], y: rect.top + rect.height * origin[1] });
+  }
   trail(target = window, options = {}) {
     if (this._destroyed) return () => {};
     let previous = 0;

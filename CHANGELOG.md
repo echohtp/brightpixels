@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- Add optional dependency-free `brightpixels/interactions` with TypeScript declarations and SSR-safe imports.
+- Track promise loading and outcome feedback with stale-response protection and visual-only cancellation.
+- Bind native hold buttons, native swipe ranges and drag regions to temporary surface charge, with keyboard input and cleanup.
+- Compose replayable, cancellable effect sequences from surfaces, groups and element particle bursts; respect reduced motion.
+- Emit particles from current element centers or edge midpoints, with hidden/offscreen guards.
+- Add the compact Chain Reaction Action Lab; widen touch trails while preserving mouse precision.
+
+
 ## 1.3.2 — 2026-09-07
 
 - Condense the surface lab into keyboard-accessible Burst, Draw & charge, and Feedback panels with shareable links; preserve settings and suspend inactive rendering.

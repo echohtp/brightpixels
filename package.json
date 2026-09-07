@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "HDR text, images, shapes, interactive surfaces and particles, with optional React components.",
   "type": "module",
   "main": "./index.js",
@@ -39,6 +39,11 @@
       "types": "./react-surface.d.ts",
       "import": "./react-surface.js",
       "default": "./react-surface.js"
+    },
+    "./interactions": {
+      "types": "./interactions.d.ts",
+      "import": "./interactions.js",
+      "default": "./interactions.js"
     }
   },
   "files": [
@@ -56,7 +61,9 @@
     "react-confetti.js",
     "react-confetti.d.ts",
     "react-surface.js",
-    "react-surface.d.ts"
+    "react-surface.d.ts",
+    "interactions.js",
+    "interactions.d.ts"
   ],
   "sideEffects": [
     "./index.js",

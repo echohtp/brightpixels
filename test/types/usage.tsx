@@ -89,3 +89,23 @@ group.destroy();
 createSurfaceGroup([document.createElement('div')]);
 // @ts-expect-error Only supported sequence directions.
 group.burst({ from: 'random' });
+
+import { trackAction, bindHold, bindSwipe, bindDrag, createEffectSequence, type EffectStep } from 'brightpixels/interactions';
+const abort = new AbortController();
+const actionResult: Promise<number> = trackAction(surface, Promise.resolve(42), { signal: abort.signal, error: false });
+const hold = bindHold(document.createElement('button'), { surface, duration: 700, onComplete: progress => progress.toFixed(1) });
+hold.cancel().destroy();
+bindSwipe(document.createElement('input'), { surface }).destroy();
+bindDrag(document.createElement('div'), { surface, axis: 'x' }).destroy();
+effects.burstFrom(document.createElement('button'), { edge: 'top', count: 100 });
+const steps: readonly EffectStep[] = [{ effect: 'charge', surface, value: 1 }, { effect: 'group', group }, { effect: 'particles', engine: effects, target: document.body, options: { shape: 'spark' } }];
+const sequence = createEffectSequence(steps);
+sequence.play({ signal: abort.signal }); sequence.cancel().destroy();
+// @ts-expect-error Application actions must be started by the application.
+trackAction(surface, () => Promise.resolve());
+// @ts-expect-error Coordinates come from the element.
+effects.burstFrom(document.body, { x: 100 });
+// @ts-expect-error Holds require native buttons for keyboard semantics.
+bindHold(document.createElement('div'));
+// @ts-expect-error Sequences contain effects, not arbitrary application callbacks.
+createEffectSequence([{ effect: 'callback', run: () => {} }]);

@@ -37,6 +37,10 @@ export interface ParticleBurstOptions {
   /** Request stationary fading particles. System reduced motion always takes priority. */
   reducedMotion?: boolean;
 }
+export interface ElementBurstOptions extends Omit<ParticleBurstOptions, 'x' | 'y'> {
+  /** Center or midpoint of an edge. Edge bursts point outward unless angle is provided. */
+  edge?: 'center' | 'top' | 'right' | 'bottom' | 'left';
+}
 export interface ParticleEffects {
   readonly canvas: HTMLCanvasElement | null;
   /** Resolves after the current GPU initialization attempt. Never rejects for unsupported GPU. */
@@ -50,6 +54,8 @@ export interface ParticleEffects {
   readonly intensity: number;
   /** Returns how many particles were emitted. Burst overflow retires the oldest particles. */
   burst(options?: ParticleBurstOptions): number;
+  /** Emit from the current viewport bounds. Hidden, detached or offscreen targets emit nothing. */
+  burstFrom(target: Element, options?: ElementBurstOptions): number;
   /** Attach a mouse trail and return an idempotent stop function. Default target: window. */
   trail(target?: Window | HTMLElement, options?: ParticleBurstOptions): () => void;
   /** Freeze particles and stop frames. Bursts emit nothing while paused. */
