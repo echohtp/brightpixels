@@ -7,6 +7,7 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 ## What's new in 1.0
 
 - Stable public API for HDR text, images, shapes, progress and status indicators.
+- Existing-element edge glow and touch, mouse and keyboard interaction feedback.
 - Viewport-aware rendering and auto/high/low quality controls.
 - Capability snapshots, fallback reasons and copyable hardware diagnostics.
 - Chromium/WebKit browser checks and React / TypeScript integration checks.
@@ -15,17 +16,11 @@ Dependency-free JavaScript web components for HDR text, image highlights, and na
 
 ## Installation
 
-Install version 1.0.0 from the GitHub release tarball while registry publication is deferred:
-
-```bash
-npm install https://github.com/echohtp/brightpixels/releases/download/v1.0.0/brightpixels-1.0.0.tgz
-```
-
-The following installs the currently published registry version, which may be older:
-
 ```bash
 npm install brightpixels
 ```
+
+For an exact version, use `npm install brightpixels@1.0.0`.
 
 Import the package once to register `<bright-text>` and `<bright-image>`:
 
@@ -483,13 +478,12 @@ signals and physical HDR output remain device-dependent.
 See [release notes](https://github.com/echohtp/brightpixels/blob/main/CHANGELOG.md) and [hardware validation status](https://github.com/echohtp/brightpixels/blob/main/HARDWARE_VALIDATION.md)
 for tested behavior and compatibility details.
 
-### Existing-element edges (unreleased)
+### Existing-element edges
 
-[Try the edge demo](https://echohtp.github.io/brightpixels/edges.html). This helper
-is in repository source; it is not included in the tagged 1.0.0 package.
+[Try the edge demo](https://echohtp.github.io/brightpixels/edges.html). Included in the npm 1.0.0 release.
 
 ```js
-import { brightenEdges } from './index.js';
+import { brightenEdges } from 'brightpixels';
 
 const [edge] = brightenEdges('.my-card', {
   color: 'color(display-p3 0.2 1 0.65)',
@@ -523,14 +517,14 @@ This enhances an edge only; fills, arbitrary SVG strokes, and text decorations a
 not part of this helper. HDR still depends on the renderer and display, with an
 ordinary-color edge fallback when HDR is unavailable.
 
-### Interaction feedback (unreleased)
+### Interaction feedback
 
 [Try ten interaction examples](https://echohtp.github.io/brightpixels/interactions.html):
 press/release bloom, success, error, warning, selection, range feedback,
 hold-to-confirm, completion, field focus and notification.
 
 ```js
-import { brightenFeedback } from './index.js';
+import { brightenFeedback } from 'brightpixels';
 const [feedback] = brightenFeedback(button); // pointer + Enter/Space press light
 feedback.flash('success'); // call after your application action succeeds
 feedback.select(true); // quiet persistent edge; caller owns ARIA/application state
@@ -550,9 +544,9 @@ to light; upload/save/error/notification actions are labeled simulations. Press
 light works with touch, mouse, and keyboard. Reduced motion skips animated blooms
 while preserving static press and selection feedback. Pulses stop offscreen or
 when the page is hidden. Removing the target destroys the controller and its edge;
-reattach feedback after reinserting the target. These helpers are not in 1.0.0 yet.
+reattach feedback after reinserting the target. Included in the npm 1.0.0 release.
 
-### Touch recipes (unreleased)
+### Touch recipes
 
 [Open the Touch Lab](https://echohtp.github.io/brightpixels/mobile.html) for five
 compositions using the feedback helper and ordinary HTML controls:
@@ -568,3 +562,13 @@ These are demo recipes, not new application actions or a navigation framework.
 The demos preserve vertical scrolling around gestures, use 48px minimum button
 heights, and keep confirmation messages separate from color. No vibration API is
 required. Demo source lives in `assets/mobile.js` and `mobile.html`.
+
+### Neon demo themes
+
+[Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) includes mouse-following
+card glow, background Tron trails and a glowing confetti cannon.
+[Download its source kit](https://echohtp.github.io/brightpixels/assets/brightpixels-dreamnet.zip).
+The themes and demo-specific effects are separate recipes, not npm package exports.
+
+The npm 1.0.0 release includes edge and feedback helpers added after the earlier
+GitHub v1.0.0 snapshot. Use npm for the complete stable package.
