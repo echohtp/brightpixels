@@ -1,9 +1,8 @@
 import { brightenFeedback, configureBrightpixels } from '../index.js';
-import { glowCards } from './card-glow.js?v=20260907-story1';
-import './tron-trail.js?v=20260907-story1';
-import './overload.js?v=20260907-story1';
-import './narrative.js?v=20260907-story1';
-import { fireConfetti } from './confetti-cannon.js?v=20260907-story1';
+import { glowCards } from './card-glow.js?v=20260907-wry1';
+import './tron-trail.js?v=20260907-wry1';
+import './overload.js?v=20260907-wry1';
+import { fireConfetti } from './confetti-cannon.js?v=20260907-wry1';
 const $ = (id) => document.getElementById(id), root = document.documentElement;
 brightenFeedback(document.querySelectorAll('button'));
 glowCards('.dn-window');
