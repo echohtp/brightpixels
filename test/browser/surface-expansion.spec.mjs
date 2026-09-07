@@ -142,3 +142,77 @@ test('expanded demo works on phones, with keyboard switches and palette changes'
   if(info.project.name==='chromium')await page.screenshot({path:'test-results/surface-expansion-mobile.png',fullPage:true});
   expect(errors).toEqual([]);
 });
+
+test.describe('phone touch controls',()=>{
+  test.use({viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:3});
+
+  test('touch release lights the tiles and phone tuning keeps native controls',async({page},info)=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined}));
+    await page.goto('/surfaces.html');
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await expect(page.locator('.signal-cell bright-surface')).toHaveCount(4);
+    await page.evaluate(()=>document.fonts.ready);
+    const layout=await page.evaluate(()=>({
+      fire:document.querySelector('#group-burst').getBoundingClientRect().top,
+      bottom:document.querySelector('.neon-block').getBoundingClientRect().bottom,
+      viewport:innerHeight,
+    }));
+    expect(layout.fire).toBeGreaterThan(0);
+    expect(layout.bottom).toBeLessThan(layout.viewport);
+    await expect(page.locator('#light-tuning')).toBeHidden();
+    await page.evaluate(()=>{
+      window.addEventListener('pointerdown',e=>window.lastPointerType=e.pointerType);
+      window.addEventListener('click',e=>{
+        const tile=e.target.closest('.signal-cell');
+        if(!tile)return;
+        const light=tile.querySelector('bright-surface')._controller;
+        window.tapState={pressed:light._pressed,sweep:light._sweep?.duration,flash:Boolean(light._flash)};
+      });
+    });
+    await page.getByRole('button',{name:'Light up input',exact:true}).tap();
+    await expect(page.locator('#burst-status')).toContainText('INPUT lit');
+    expect(await page.evaluate(()=>[lastPointerType,tapState])).toEqual(['touch',{pressed:null,sweep:900,flash:true}]);
+    await page.locator('#group-burst').tap();
+    await expect(page.locator('#burst-status')).toContainText('NEON SALVO 01');
+    await page.getByRole('button',{name:'Colors and direction'}).tap();
+    await expect(page.locator('#light-tuning')).toBeVisible();
+    await page.locator('#light-palette').selectOption('acid');
+    await page.locator('#burst-direction').selectOption('start');
+    await page.getByRole('button',{name:'Colors and direction'}).tap();
+    await expect(page.locator('#light-tuning')).toBeHidden();
+    await page.locator('#group-burst').tap();
+    await expect(page.locator('#burst-status')).toContainText('NEON SALVO 02');
+    if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-first-screen.png'});
+
+    await page.locator('#arm-neon').tap();
+    await expect(page.locator('#arm-neon')).toHaveAttribute('aria-checked','true');
+    await expect(page.locator('.charge-readout output')).toHaveText('100%');
+    await page.locator('#draw-pad').tap();
+    // Touch feedback must release its pointer; only the drawing pad opts out of scrolling.
+    expect(await page.locator('#draw-pad bright-surface').evaluate(el=>el._controller._pressed)).toBeNull();
+    await expect(page.locator('#draw-pad')).toHaveCSS('touch-action','none');
+    await expect(page.locator('.signal-cell').first()).toHaveCSS('touch-action','auto');
+    const targets=await page.locator('.mini-actions button, #energy-charge, #arm-neon, #group-burst').evaluateAll(els=>els.map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height})));
+    for(const target of targets){expect(target.width).toBeGreaterThanOrEqual(44);expect(target.height).toBeGreaterThanOrEqual(44);}
+    await page.locator('#group-burst').scrollIntoViewIfNeeded();
+    if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-full-page.png',fullPage:true});
+    expect(errors).toEqual([]);
+  });
+
+  test('small phones and landscape keep the burst visible without overflow',async({page},info)=>{
+    await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined}));
+    await page.goto('/surfaces.html');
+    for(const size of [{width:320,height:568},{width:375,height:667},{width:430,height:932},{width:667,height:375},{width:844,height:390}]){
+      await page.setViewportSize(size);
+      await page.locator('#group-burst').scrollIntoViewIfNeeded();
+      await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      // The fire control plus the complete reaction must fit together at every orientation.
+      const stageHeight=await page.evaluate(()=>document.querySelector('.neon-block').getBoundingClientRect().bottom-document.querySelector('#group-burst').getBoundingClientRect().top);
+      expect(stageHeight).toBeLessThan(size.height-24);
+      await page.locator('#group-burst').tap();
+      await expect(page.locator('#burst-status')).toContainText('NEON SALVO');
+    }
+    if(info.project.name==='chromium')await page.screenshot({path:'test-results/surfaces-phone-landscape.png'});
+  });
+});

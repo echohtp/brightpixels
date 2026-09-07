@@ -7,10 +7,22 @@ const palettes = {
   electric: ['#55eeff','#ff55c8'], acid: ['#d4ff64','#20ffc2'], inferno: ['#ffb845','#ff3b74'],
 };
 
-function ExpansionLab({ intensity, enabled }) {
+function useCompactLayout() {
+  const [compact,setCompact] = useState(()=>window.matchMedia('(max-width: 700px)').matches);
+  useEffect(()=>{
+    const query = window.matchMedia('(max-width: 700px)');
+    const update = ()=>setCompact(query.matches);
+    update(); query.addEventListener('change',update);
+    return ()=>query.removeEventListener('change',update);
+  },[]);
+  return compact;
+}
+
+function ExpansionLab({ intensity, enabled, compact }) {
   const pads = useRef([]), group = useRef(null), members = useRef([]), drawing = useRef(null), charge = useRef(null);
   const [palette,setPalette] = useState('electric'), [direction,setDirection] = useState('center');
   const [salvos,setSalvos] = useState(0), [energy,setEnergy] = useState(0), [armed,setArmed] = useState(false);
+  const [tuningOpen,setTuningOpen] = useState(false), [tapped,setTapped] = useState('');
   const [color,colorEnd] = palettes[palette];
   useEffect(() => {
     members.current = pads.current.map((element,index)=>brightenSurface(element,{
@@ -24,13 +36,22 @@ function ExpansionLab({ intensity, enabled }) {
   }, [palette,intensity,enabled]);
   function fire() {
     group.current?.burst({from:direction,stagger:100});
+    setTapped('');
     setSalvos(value=>value+1);
+  }
+  function fireCell(index,label) {
+    members.current[index]?.ripple().sweep({duration:900}).flash('press');
+    setTapped(`${label} lit. Tap another tile, or fire all four.`);
   }
   return <section className="expansion-lab" aria-labelledby="expansion-title">
     <div className="lab-heading"><div><p className="eyebrow">NEW / MORE THAN A HOVER EFFECT</p><h2 id="expansion-title">LIGHT THE<br/><em>WHOLE BLOCK.</em></h2></div><p>Four surfaces. One signal.<br/>Absolutely no need for this much enthusiasm.</p></div>
-    <div className="lab-options"><label>Light palette<select id="light-palette" value={palette} onChange={e=>setPalette(e.target.value)}><option value="electric">Electric / cyan + pink</option><option value="acid">Acid / lime + mint</option><option value="inferno">Inferno / amber + rose</option></select></label><label>Wave direction<select id="burst-direction" value={direction} onChange={e=>setDirection(e.target.value)}><option value="center">From the middle</option><option value="start">Left to right</option><option value="end">Right to left</option></select></label><button id="group-burst" className="primary overdrive-fire" onClick={fire}>FIRE THE WHOLE BLOCK ↗</button></div>
-    <div className="neon-block">{['INPUT','THOUGHT','DOUBT','OUTPUT'].map((label,index)=><article key={label} ref={el=>pads.current[index]=el} className="signal-cell"><span className="cell-number">0{index+1}</span><span className="cell-glyph" aria-hidden="true">{['↗','✳','≋','◈'][index]}</span><strong>{label}</strong><small>{['Click detected.','Thinking, allegedly.','Quietly suppressed.','Confidence: excessive.'][index]}</small></article>)}</div>
-    <p id="burst-status" className="lab-status" role="status">{salvos?`NEON SALVO ${String(salvos).padStart(2,'0')} · Every surface got the memo.`:'Press fire. Watch the light move between surfaces.'}</p>
+    <div className="lab-options">
+      <button className="tuning-toggle" aria-label="Colors and direction" aria-expanded={tuningOpen} aria-controls="light-tuning" onClick={()=>setTuningOpen(!tuningOpen)}>Tune glow <span aria-hidden="true">{tuningOpen?'−':'+'}</span></button>
+      <div id="light-tuning" className="light-tuning" hidden={compact&&!tuningOpen}><label>Light palette<select id="light-palette" value={palette} onChange={e=>setPalette(e.target.value)}><option value="electric">Electric / cyan + pink</option><option value="acid">Acid / lime + mint</option><option value="inferno">Inferno / amber + rose</option></select></label><label>Wave direction<select id="burst-direction" value={direction} onChange={e=>setDirection(e.target.value)}><option value="center">From the middle</option><option value="start">First to last</option><option value="end">Last to first</option></select></label></div>
+      <button id="group-burst" className="primary overdrive-fire" onClick={fire}>FIRE THE WHOLE BLOCK ↗</button>
+    </div>
+    <div className="neon-block">{['INPUT','THOUGHT','DOUBT','OUTPUT'].map((label,index)=><button type="button" key={label} ref={el=>pads.current[index]=el} className="signal-cell" aria-label={`Light up ${label.toLowerCase()}`} onClick={()=>fireCell(index,label)}><span className="cell-number">0{index+1}</span><span className="cell-glyph" aria-hidden="true">{['↗','✳','≋','◈'][index]}</span><strong>{label}</strong><small>{['Tap detected.','Thinking, allegedly.','Quietly suppressed.','Confidence: excessive.'][index]}</small></button>)}</div>
+    <p id="burst-status" className="lab-status" role="status">{tapped||(salvos?`NEON SALVO ${String(salvos).padStart(2,'0')} · Every surface got the memo.`:'Tap a tile. Or fire all four at once.')}</p>
     <div className="hands-on">
       <div className="draw-example"><div className="mini-heading"><h3>DRAW WITH LIGHT.</h3><span>TRAILS + SWEEPS</span></div>
         <BrightSurface ref={drawing} id="draw-pad" className="draw-pad" tabIndex={0} aria-label="Light drawing pad. Drag inside to draw temporary neon trails, or use the Sweep button." options={{color,colorEnd,intensity,enabled,trail:true,trailLifetime:1100,spotlight:false,press:false}}>
@@ -51,6 +72,7 @@ function ExpansionLab({ intensity, enabled }) {
 }
 
 function App() {
+  const compact = useCompactLayout();
   const stage = useRef(null), receive = useRef(null), send = useRef(null), loader = useRef(null);
   const [intensity,setIntensity] = useState(10), [hdr,setHDR] = useState(true), [enabled,setEnabled] = useState(true);
   const [loading,setLoading] = useState(false), [selected,setSelected] = useState(false), [status,setStatus] = useState('Go on. Touch it.');
@@ -70,7 +92,7 @@ function App() {
       <div className="intro-bottom"><p>Draw it. Charge it. Send it across the room.<br/>Your pixels have been promoted.</p><span className="edition">REAL HDR.<br/>REAL BUTTONS.<br/>QUESTIONABLE RESTRAINT.</span></div>
     </section>
     <div className="settings"><label><input id="effects-enabled" type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Effects</label><label><input id="hdr-enabled" type="checkbox" checked={hdr} onChange={e=>{setHDR(e.target.checked); configureBrightpixels({enabled:e.target.checked});}}/> HDR</label><label className="intensity">Intensity <input id="surface-intensity" type="range" min="1" max="16" value={intensity} onChange={e=>setIntensity(Number(e.target.value))}/><output>{intensity}</output></label></div>
-    <ExpansionLab intensity={intensity} enabled={enabled}/>
+    <ExpansionLab intensity={intensity} enabled={enabled} compact={compact}/>
     <BrightSurface ref={stage} as="section" id="touch-stage" className="touch-stage" options={{color:'#55eeff',colorEnd:'#ff55c8',intensity,enabled,selected}}>
       <div className="stage-top"><span>01 / THE WHOLE SURFACE RESPONDS</span><span>MOVE · PRESS · RELEASE</span></div>
       <div className="stage-center"><div className="orbit" aria-hidden="true"><span>↗</span></div><h2>A LITTLE BUTTON.<br/><em>A BIG REACTION.</em></h2><p>Move your cursor over this panel. On a phone, press anywhere.<br/>The light starts right beneath your finger.</p></div>
