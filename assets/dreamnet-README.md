@@ -24,6 +24,12 @@ a white core and a fading neon tail. Trails stop over cards and controls. The
 motion toggle and system reduced-motion preference disable them. No library is
 required; assets/tron-trail.js uses a bounded SVG layer with no idle render loop.
 
+GIGA OVERLOAD is on by default: neon window borders, laser grid, broadcast ticker,
+orbital hyperspace portal and sticker wall. Toggle it at the top of the page.
+IGNITE fires 144 particles and pulses the HDR portal ring. assets/overload.css and
+assets/overload.js contain the additional theme layer. Decorative motion respects
+both the page motion switch and system preferences.
+
 FIRE CONFETTI launches two neon cannons with stars, ribbons, dots and rings.
 assets/confetti-cannon.js exports fireConfetti(buttonElement) for reuse with this
 stylesheet. The particle layer is inert, capped at 192 pieces, and cleaned up

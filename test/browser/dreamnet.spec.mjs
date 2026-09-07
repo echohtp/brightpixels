@@ -5,6 +5,38 @@ async function open(page) {
   await page.goto('/dreamnet.html');
 }
 
+test('giga mode toggles and hyperspace fires on desktop and phone', async ({ page }, info) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await open(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => document.fonts.ready);
+  const toggle = page.locator('#overload-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-overload', 'classic');
+  await expect(toggle).toHaveText('GIGA OVERLOAD: OFF');
+  await toggle.click();
+  await expect(page.locator('html')).toHaveAttribute('data-overload', 'giga');
+  await page.locator('#overdrive-fire').click();
+  await expect(page.locator('#overdrive-status')).toContainText('JUMP 01 COMPLETE');
+  await expect(page.locator('.dn-confetti-piece')).toHaveCount(14);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.locator('#overdrive-fire').click();
+  await expect(page.locator('.dn-confetti-piece')).toHaveCount(144);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  if (info.project.name === 'chromium') await page.screenshot({ path: 'test-results/dreamnet-giga.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('#overdrive-fire').click();
+  await expect(page.locator('#overdrive-status')).toContainText('JUMP 03 COMPLETE');
+  if (info.project.name === 'chromium') await page.screenshot({ path: 'test-results/dreamnet-giga-mobile.png', fullPage: true });
+  expect(errors).toEqual([]);
+});
+
 test('new cannon loads fresh assets even when unversioned demo files are stale', async ({ page }) => {
   await page.route(/\/assets\/dreamnet\.js$/, route => route.fulfill({ contentType: 'application/javascript', body: '// Cached demo from before the cannon existed.' }));
   await page.route(/\/assets\/dreamnet\.css$/, route => route.fulfill({ contentType: 'text/css', body: 'body{background:black}' }));
@@ -121,8 +153,9 @@ test('mouse spotlight is painted over the opaque night-drive scene', async ({ pa
   await open(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.locator('#motion').uncheck();
-  await page.locator('#scene').hover({ position: { x: 150, y: 150 } });
   const card = page.locator('#night-drive');
+  await card.scrollIntoViewIfNeeded();
+  await page.locator('#scene').hover({ position: { x: 150, y: 150 } });
   await expect(card).toHaveAttribute('data-tracking', '');
   await expect.poll(() => card.evaluate(el => {
     const glow = getComputedStyle(el, '::before');

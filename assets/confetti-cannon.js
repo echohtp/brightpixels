@@ -18,11 +18,11 @@ const retire = (piece) => {
 };
 const clear = () => { for (const piece of active.keys()) retire(piece); };
 
-export function fireConfetti(origin) {
+export function fireConfetti(origin, { count: requestedCount = 96 } = {}) {
   if (document.hidden) return;
   const still = reduced.matches || root.hasAttribute('data-still');
   const rect = origin.getBoundingClientRect();
-  const count = still ? 14 : 96;
+  const count = still ? 14 : Math.max(1, Math.min(192, Math.round(Number(requestedCount) || 96)));
   for (let i = 0; i < count; i++) {
     while (active.size >= 192) retire(active.keys().next().value);
     const piece = document.createElement('span');
