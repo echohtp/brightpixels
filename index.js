@@ -2217,14 +2217,16 @@ export function createSurfaceGroup(controllers) {
     burst({ kind = 'press', stagger = 60, from = 'center' } = {}) {
       cancel();
       if (destroyed || document.hidden) return group;
-      const spacing = motion?.matches ? 0 : Number.isFinite(Number(stagger)) ? Math.max(0,Math.min(120,Number(stagger))) : 60;
+      // A newly evaluated query can update before an existing query's change event in WebKit.
+      const reduced = motion?.matches || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const spacing = reduced ? 0 : Number.isFinite(Number(stagger)) ? Math.max(0,Math.min(120,Number(stagger))) : 60;
       const center = (members.length-1)/2;
       const order = members.map((member,index)=>({member,index})).sort((a,b)=>
         from === 'end' ? b.index-a.index : from === 'start' ? a.index-b.index : Math.abs(a.index-center)-Math.abs(b.index-center));
       order.forEach(({member},index)=>{
         const fire = () => {
           if (!destroyed && member._active()) {
-            if (motion?.matches) member.flash(kind);
+            if (reduced) member.flash(kind);
             else member.ripple().sweep().flash(kind);
           }
         };

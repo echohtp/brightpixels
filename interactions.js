@@ -280,9 +280,12 @@ export function createEffectSequence(steps) {
               };
               frame = requestAnimationFrame(tick); return;
             }
-          } else if (step.effect === 'sweep') light.sweep({ ...step.options, duration: step.duration });
+          } else if (step.effect === 'sweep') {
+            if (motion.matches) light.flash('press');
+            else light.sweep({ ...step.options, duration: step.duration });
+          }
           else if (step.effect === 'flash') light.flash(step.kind || 'success');
-          else if (step.effect === 'ripple') light.ripple(step.options);
+          else if (step.effect === 'ripple' && !motion.matches) light.ripple(step.options);
           else if (step.effect === 'group') { groups.add(step.group); step.group.burst(step.options); }
           else if (step.effect === 'particles') step.engine.burstFrom(step.target, step.options);
           const duration = motion.matches && step.effect !== 'wait' ? 0 : step.duration;
