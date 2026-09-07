@@ -20,6 +20,7 @@ test('drag light paints a bounded trail, fades out, and respects cancellation',a
   await page.mouse.move(box.x+30,box.y+100);
   await page.mouse.down();
   await expect.poll(()=>page.evaluate(()=>light._traces.length)).toBe(1);
+  await expect.poll(()=>page.evaluate(()=>light._context.getImageData(Math.round(30*light._scale),Math.round(100*light._scale),1,1).data[3])).toBeGreaterThan(0);
   await page.mouse.move(box.x+310,box.y+140,{steps:24});
   await page.mouse.up();
   await expect.poll(()=>page.evaluate(()=>light._traces.length)).toBeGreaterThan(1);
