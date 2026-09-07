@@ -50,6 +50,9 @@ test('demo outcomes, selection, range and notification work on a narrow viewport
   await page.setViewportSize({ width: 375, height: 812 });
   const errors = []; page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/interactions.html');
+  // Keep native focus scrolling from moving the next click target in WebKit.
+  // This test checks control outcomes; glow animations remain enabled.
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   for (const id of ['save', 'error', 'warning']) {
     await page.locator('#' + id).click();
     await expect(page.locator('#' + id + '-status')).not.toBeEmpty();
