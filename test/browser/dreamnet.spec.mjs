@@ -47,3 +47,21 @@ test('dreamnet desktop and phone previews preserve layout', async ({ page }, inf
   await page.locator('#adopt').click();
   await expect(page.locator('#adopt-status')).toHaveText('1 star in your sky.');
 });
+
+test('mouse spotlight is painted over the opaque night-drive scene', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1440, height: 1400 });
+  await open(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#motion').uncheck();
+  await page.locator('#scene').hover({ position: { x: 150, y: 150 } });
+  const card = page.locator('#night-drive');
+  await expect(card).toHaveAttribute('data-tracking', '');
+  await expect.poll(() => card.evaluate(el => {
+    const glow = getComputedStyle(el, '::before');
+    const scene = getComputedStyle(el.querySelector('#scene'));
+    return glow.opacity === '1' && Number(glow.zIndex) > (Number(scene.zIndex) || 0) && glow.pointerEvents === 'none';
+  })).toBe(true);
+  if (info.project.name === 'chromium') await card.screenshot({ path: 'test-results/dreamnet-spotlight.png' });
+  await page.locator('#drive').click();
+  await expect(page.locator('#drive-status')).toContainText('Cruising');
+});
