@@ -42,3 +42,7 @@ clear-local-notes button. Star adoptions last only for the current page visit.
 The included runtime has repository features newer than the tagged 1.0.0 package.
 HDR output depends on browser, OS and display support; the CSS theme also has
 ordinary-color fallbacks.
+
+When deploying an updated theme, update the asset revision in dreamnet.html
+and its local imports in assets/dreamnet.js together. This avoids mixing fresh
+markup with older scripts or styles retained in the browser cache.

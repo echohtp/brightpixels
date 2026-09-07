@@ -5,6 +5,18 @@ async function open(page) {
   await page.goto('/dreamnet.html');
 }
 
+test('new cannon loads fresh assets even when unversioned demo files are stale', async ({ page }) => {
+  await page.route(/\/assets\/dreamnet\.js$/, route => route.fulfill({ contentType: 'application/javascript', body: '// Cached demo from before the cannon existed.' }));
+  await page.route(/\/assets\/dreamnet\.css$/, route => route.fulfill({ contentType: 'text/css', body: 'body{background:black}' }));
+  await open(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.locator('#confetti-fire').click();
+  await expect(page.locator('#confetti-status')).toContainText('SALVO 01');
+  await expect(page.locator('.dn-confetti-piece')).toHaveCount(96);
+  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('position', 'fixed');
+  await expect(page.locator('.dn-confetti-layer')).toHaveCSS('pointer-events', 'none');
+});
+
 test('neon confetti cannon bursts, caps particles and supports reduced motion on phones', async ({ page }, info) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });

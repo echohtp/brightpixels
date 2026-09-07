@@ -1,7 +1,7 @@
 import { brightenFeedback, configureBrightpixels } from '../index.js';
-import { glowCards } from './card-glow.js';
-import './tron-trail.js';
-import { fireConfetti } from './confetti-cannon.js';
+import { glowCards } from './card-glow.js?v=20260907-cannon2';
+import './tron-trail.js?v=20260907-cannon2';
+import { fireConfetti } from './confetti-cannon.js?v=20260907-cannon2';
 const $ = (id) => document.getElementById(id), root = document.documentElement;
 brightenFeedback(document.querySelectorAll('button'));
 glowCards('.dn-window');
