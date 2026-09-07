@@ -209,7 +209,8 @@ test.describe('phone touch controls',()=>{
     for(const size of [{width:320,height:568},{width:375,height:667},{width:430,height:932},{width:667,height:375},{width:844,height:390}]){
       await page.setViewportSize(size);
       await page.locator('#group-burst').scrollIntoViewIfNeeded();
-      await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      if(size.width===320)await page.screenshot({path:`test-results/surfaces-small-${info.project.name}.png`,fullPage:true});
+      await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),{message:`No horizontal overflow at ${size.width}×${size.height}`}).toBe(true);
       // The fire control plus the complete reaction must fit together at every orientation.
       const stageHeight=await page.evaluate(()=>document.querySelector('.neon-block').getBoundingClientRect().bottom-document.querySelector('#group-burst').getBoundingClientRect().top);
       expect(stageHeight).toBeLessThan(size.height-24);
