@@ -75,3 +75,17 @@ surface.destroy();
 surface.flash('alarm');
 // @ts-expect-error Replaced elements cannot act as React surface containers.
 export const InvalidSurface = <BrightSurface as="input"/>;
+
+
+import { createSurfaceGroup } from 'brightpixels';
+surface.update({ colorEnd: 'magenta', trail: true, trailLifetime: 800, charge: .6 });
+surface.sweep({ angle: 180, duration: 700 }).setCharge(1);
+surfaceRef.current?.setCharge(.4);
+surfaceRef.current?.sweep({ angle: -25 });
+const group = createSurfaceGroup([surface]);
+group.burst({ from: 'center', kind: 'complete', stagger: 80 }).cancel();
+group.destroy();
+// @ts-expect-error Groups take controllers, not DOM nodes.
+createSurfaceGroup([document.createElement('div')]);
+// @ts-expect-error Only supported sequence directions.
+group.burst({ from: 'random' });

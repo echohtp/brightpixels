@@ -1,4 +1,4 @@
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const TEXT_TAG_NAME = "bright-text";
 const IMAGE_TAG_NAME = "bright-image";
 const DEFAULT_INTENSITY = 16;
@@ -1706,8 +1706,10 @@ export function brightenFeedback(targets, options = {}) {
 // Interactive surfaces share the core GPU device and frame scheduler.
 const surfaceEnhancements = new WeakMap();
 const surfacePipelines = new WeakMap();
-const SURFACE_DEFAULTS = { color: '#55eeff', intensity: 8, thickness: 2, radius: null,
-  spotlightSize: 180, spotlight: true, ripple: true, press: true, loading: false, selected: false, enabled: true };
+const SURFACE_DEFAULTS = { color: '#55eeff', colorEnd: '', intensity: 8, thickness: 2, radius: null,
+  spotlightSize: 180, spotlight: true, ripple: true, press: true, loading: false, selected: false, enabled: true,
+  trail: false, trailLifetime: 600, charge: 0 };
+const SURFACE_FLOATS = 92;
 const SURFACE_SHADER = `
 struct Surface {
   size: vec4f, // width, height, corner radius, edge thickness
@@ -1715,6 +1717,10 @@ struct Surface {
   pointer: vec4f, // local position, spotlight radius, visibility
   state: vec4f, // flash envelope, selected, loading, time
   waves: array<vec4f, 4>, // origin, radius, opacity
+  accent: vec4f, // second linear color, gradient enabled
+  sweep: vec4f, // normalized position, strength, direction vector
+  charge: vec4f, // amount, alpha
+  traces: array<vec4f, 12>, // local point, width, opacity
 };
 @group(0) @binding(0) var<uniform> s: Surface;
 struct VertexOutput { @builtin(position) position: vec4f, @location(0) uv: vec2f };
@@ -1741,8 +1747,26 @@ struct VertexOutput { @builtin(position) position: vec4f, @location(0) uv: vec2f
     let ring = abs(length(p-wave.xy)-wave.z);
     light += (exp(-ring*ring/6.0)*.85 + exp(-ring*ring/180.0)*.18) * wave.w;
   }
+  let extent = abs(s.sweep.z) * s.size.x + abs(s.sweep.w) * s.size.y;
+  let projected = dot(p-s.size.xy*.5,s.sweep.zw);
+  let scanDistance = abs(projected-(s.sweep.x-.5)*extent*1.4);
+  light += (exp(-scanDistance*scanDistance/80.0)*.75 + exp(-scanDistance*scanDistance/2400.0)*.17) * s.sweep.y;
+  let fill = smoothstep(1.0-s.charge.x-.012,1.0-s.charge.x+.012,v.uv.y) * s.charge.y;
+  let fillEdge = exp(-pow((v.uv.y-(1.0-s.charge.x))*s.size.y/2.0,2.0)) * s.charge.y;
+  light += fill * (.055 + edge * .6) + fillEdge * .5;
+  for (var i = 0u; i < 12u; i++) {
+    let point = s.traces[i];
+    if (point.w <= 0.0) { continue; }
+    var previous = point.xy;
+    if (i > 0u && s.traces[i-1u].w > 0.0) { previous = s.traces[i-1u].xy; }
+    let segment = point.xy - previous;
+    let t = clamp(dot(p-previous,segment)/max(dot(segment,segment),.001),0.0,1.0);
+    let distanceToTrail = length(p-previous-segment*t);
+    light += (exp(-pow(distanceToTrail/max(point.z,.5),2.0))*.8 + exp(-distanceToTrail/10.0)*.16) * point.w;
+  }
   light = min(light * clip, 1.0);
-  return vec4f(s.color.rgb * s.color.a * light, min(light,.75));
+  let color = mix(s.color.rgb,s.accent.rgb,clamp(v.uv.x*.75+v.uv.y*.25,0.0,1.0)*s.accent.a);
+  return vec4f(color * s.color.a * light, min(light,.75));
 }`;
 
 function getSurfacePipeline(device) {
@@ -1790,11 +1814,11 @@ export function brightenSurface(target, options = {}) {
 class BrightSurfaceController {
   constructor(target, options) {
     this.target = target; this._options = { ...SURFACE_DEFAULTS };
-    this._listeners = []; this._links = new Set(); this._waves = [];
+    this._listeners = []; this._links = new Set(); this._waves = []; this._traces = []; this._tracePoint = null; this._sweep = null;
     this._frame = 0; this._timer = 0; this._generation = 0; this._destroyed = false;
     this._gpu = null; this._mode = 'fallback'; this._reason = 'webgpu-unavailable';
     this._pointer = null; this._pressed = null; this._flash = null; this._near = true; this._blurred = false;
-    this._uniforms = new Float32Array(32);
+    this._uniforms = new Float32Array(SURFACE_FLOATS);
     this._motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     retainPosition(target);
     defineSurfaceOverlay();
@@ -1816,20 +1840,21 @@ class BrightSurfaceController {
     };
     const eligible = event => !(event.target instanceof Element && event.target.closest(':disabled,[aria-disabled="true"],[inert]'));
     const track = event => {
-      if (!eligible(event) || this._motion?.matches || !this._options.spotlight || !this._active() || event.isPrimary === false) return;
+      if (!eligible(event) || this._motion?.matches || (!this._options.spotlight && !this._options.trail) || !this._active() || event.isPrimary === false) return;
       if (event.pointerType === 'touch' && this._pressed !== event.pointerId) return;
-      this._pointer = { clientX: event.clientX, clientY: event.clientY, touch: event.pointerType === 'touch' };
+      const point = { clientX: event.clientX, clientY: event.clientY, touch: event.pointerType === 'touch' };
+      if (this._options.spotlight) this._pointer = point;
+      if (this._options.trail && (event.buttons & 1 || this._pressed === event.pointerId)) this._tracePoint = point;
       this._wake();
     };
     listen(target, 'pointerenter', track);
     listen(target, 'pointermove', track, { passive: true });
     listen(target, 'pointerleave', () => { this._pointer = null; this._wake(); });
     listen(target, 'pointerdown', event => {
-      if (!eligible(event) || !this._options.press || event.button !== 0 || event.isPrimary === false || !this._active()) return;
+      if (!eligible(event) || event.button !== 0 || event.isPrimary === false || !this._active()) return;
       this._pressed = event.pointerId;
       track(event);
-      this.ripple(this._local(event.clientX, event.clientY));
-      this.flash('press');
+      if (this._options.press) { this.ripple(this._local(event.clientX, event.clientY)); this.flash('press'); }
     });
     listen(window, 'pointerup', event => {
       if (this._pressed !== event.pointerId) return;
@@ -1872,6 +1897,7 @@ class BrightSurfaceController {
   get fallbackReason() { return this._reason; }
   get loading() { return this._options.loading; }
   get selected() { return this._options.selected; }
+  get charge() { return this._options.charge; }
   get running() { return Boolean(this._frame); }
   _active() { return !this._destroyed && this.target.isConnected && this._near && !document.hidden && !this._blurred && this._options.enabled; }
   _local(clientX, clientY) {
@@ -1889,10 +1915,12 @@ class BrightSurfaceController {
       this._options[key] = Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : SURFACE_DEFAULTS[key];
     };
     number('intensity', 1, 16); number('thickness', .5, 16); number('spotlightSize', 24, 800);
+    number('trailLifetime', 100, 1500); number('charge', 0, 1);
     if (this._options.radius !== null) number('radius', 0, 1000);
-    for (const key of ['spotlight','ripple','press','loading','selected','enabled']) this._options[key] = Boolean(this._options[key]);
+    for (const key of ['spotlight','ripple','press','loading','selected','enabled','trail']) this._options[key] = Boolean(this._options[key]);
     if (!this._options.spotlight) this._pointer = null;
     if (!this._options.ripple) this._waves = [];
+    if (!this._options.trail) { this._traces = []; this._tracePoint = null; }
     if (!this._flash) this._setColor(this._options.color);
     if (!this._options.enabled) { this._clearTransient(); this._fallback('disabled'); }
     this.refresh();
@@ -1919,16 +1947,20 @@ class BrightSurfaceController {
     this._wake();
     return this;
   }
-  _setColor(value) {
+  _setColor(value, endValue = this._options.colorEnd) {
     const ctx = this._colorContext;
-    ctx.clearRect(0,0,1,1); ctx.fillStyle = '#55eeff';
-    if (typeof value === 'string') ctx.fillStyle = value;
-    ctx.fillRect(0,0,1,1);
-    const bytes = ctx.getImageData(0,0,1,1).data;
     const linear = n => n <= .04045 ? n/12.92 : ((n+.055)/1.055)**2.4;
-    this._color = Array.from(bytes.slice(0,3), n => linear(n/255));
-    this._alpha = bytes[3]/255;
-    this._cssColor = `rgb(${bytes[0]},${bytes[1]},${bytes[2]})`;
+    const parse = color => {
+      ctx.clearRect(0,0,1,1); ctx.fillStyle = '#55eeff';
+      if (typeof color === 'string') ctx.fillStyle = color;
+      ctx.fillRect(0,0,1,1);
+      const bytes = ctx.getImageData(0,0,1,1).data;
+      return { linear: Array.from(bytes.slice(0,3), n => linear(n/255)), alpha: bytes[3]/255,
+        css: `rgb(${bytes[0]},${bytes[1]},${bytes[2]})` };
+    };
+    const color = parse(value), end = endValue ? parse(endValue) : color;
+    this._color = color.linear; this._alpha = color.alpha; this._cssColor = color.css;
+    this._endColor = end.linear; this._cssEndColor = end.css; this._gradient = Boolean(endValue);
   }
   _release() {
     if (!this._gpu) return;
@@ -1989,7 +2021,7 @@ class BrightSurfaceController {
   }
   flash(kind = 'press') {
     if (!this._active()) return this;
-    this._setColor(kind === 'press' ? this._options.color : FEEDBACK_COLORS[kind] || this._options.color);
+    this._setColor(kind === 'press' ? this._options.color : FEEDBACK_COLORS[kind] || this._options.color, kind === 'press' ? this._options.colorEnd : '');
     this._flash = { start: performance.now(), duration: this._motion?.matches ? 160 : 480 };
     clearTimeout(this._timer);
     this._timer = setTimeout(() => { this._flash = null; this._setColor(this._options.color); this._wake(); }, this._flash.duration);
@@ -2004,6 +2036,17 @@ class BrightSurfaceController {
     if (this._waves.length > 4) this._waves.shift();
     this._wake(); return this;
   }
+  /** One directional light sweep; no perpetual animation. */
+  sweep({ angle = 25, duration = 650 } = {}) {
+    if (!this._active()) return this;
+    if (this._motion?.matches) return this.flash('press');
+    const degrees = Number.isFinite(Number(angle)) ? Number(angle) % 360 : 25;
+    const length = Number.isFinite(Number(duration)) ? Math.max(150,Math.min(1500,Number(duration))) : 650;
+    this._sweep = { start: performance.now(), duration: length, angle: degrees*Math.PI/180 };
+    this._wake(); return this;
+  }
+  /** Progress belongs to the application; the renderer adds its light. */
+  setCharge(value = 0) { return this.update({ charge: value }); }
   setLoading(value = true) { return this.update({ loading: value }); }
   select(value = true) { return this.update({ selected: value }); }
   /** Link visual feedback only; application click handlers continue to own outcomes. */
@@ -2022,6 +2065,7 @@ class BrightSurfaceController {
   _clearTransient() {
     if (this._destroyed) return;
     this._pointer = null; this._pressed = null; this._waves = []; this._flash = null;
+    this._traces = []; this._tracePoint = null; this._sweep = null;
     clearTimeout(this._timer); cancelFrame(this._frame); this._frame = 0;
     this._setColor(this._options.color); this._wake();
   }
@@ -2038,10 +2082,20 @@ class BrightSurfaceController {
     if (!this._active()) { this._canvas.style.visibility = 'hidden'; return; }
     this._waves = this._waves.filter(wave => now-wave.start < 480);
     const reduced = Boolean(this._motion?.matches);
+    this._traces = this._traces.filter(point => now-point.start < this._options.trailLifetime);
+    if (this._tracePoint && !reduced) {
+      const point = this._local(this._tracePoint.clientX,this._tracePoint.clientY), last = this._traces.at(-1);
+      if (!last || Math.hypot(point.x-last.x,point.y-last.y) >= 2) {
+        this._traces.push({ ...point, start: now });
+        if (this._traces.length > 12) this._traces.shift();
+      }
+    }
+    this._tracePoint = null;
+    if (this._sweep && (reduced || now-this._sweep.start >= this._sweep.duration)) this._sweep = null;
     const flash = this._flash ? reduced ? .6 : Math.max(0,1-(now-this._flash.start)/480)**2 : 0;
     const selected = this.selected || (reduced && this.loading);
     const pointer = this._pointer && !reduced ? this._local(this._pointer.clientX,this._pointer.clientY) : null;
-    const active = pointer || flash || selected || this.loading || this._waves.length;
+    const active = pointer || flash || selected || this.loading || this._waves.length || this._sweep || this._traces.length || this._options.charge;
     this._canvas.style.visibility = active ? 'visible' : 'hidden';
     this.overlay.dataset.active = active ? 'true' : 'false';
     if (!active) return;
@@ -2054,11 +2108,15 @@ class BrightSurfaceController {
       const t = Math.max(0,Math.min(1,(now-wave.start)/480));
       u.set([wave.x,wave.y,wave.reach*(1-(1-t)**3),(1-t)**2*this._alpha],16+i*4);
     });
+    u.set([...this._endColor,this._gradient ? 1 : 0],32);
+    if (this._sweep) u.set([Math.max(0,(now-this._sweep.start)/this._sweep.duration),this._alpha,Math.cos(this._sweep.angle),Math.sin(this._sweep.angle)],36);
+    u.set([this._options.charge,this._options.charge > 0 ? this._alpha : 0,0,0],40);
+    this._traces.forEach((point,i) => u.set([point.x,point.y,2.5,Math.max(0,1-(now-point.start)/this._options.trailLifetime)**2*this._alpha],44+i*4));
     if (this._gpu) {
       try { this._drawGPU(); } catch { this._fallback('renderer-error'); }
     }
     if (this._context) this._drawFallback();
-    if (!reduced && (this.loading || flash || this._waves.length)) this._wake();
+    if (!reduced && (this.loading || flash || this._waves.length || this._sweep || this._traces.length)) this._wake();
   }
   _drawGPU() {
     const { device, pipeline, context, uniform, bindGroup } = this._gpu;
@@ -2073,11 +2131,13 @@ class BrightSurfaceController {
     const ctx = this._context, u = this._uniforms, [w,h,r,t] = u;
     ctx.setTransform(this._scale,0,0,this._scale,0,0); ctx.clearRect(0,0,w,h);
     ctx.save(); ctx.beginPath(); ctx.roundRect(0,0,w,h,r); ctx.clip();
-    ctx.fillStyle = this._cssColor; ctx.strokeStyle = this._cssColor;
+    const paint = this._gradient ? ctx.createLinearGradient(0,0,w,h*.35) : this._cssColor;
+    if (this._gradient) { paint.addColorStop(0,this._cssColor); paint.addColorStop(1,this._cssEndColor); }
+    ctx.fillStyle = paint; ctx.strokeStyle = paint;
     if (u[11]) {
       const gradient = ctx.createRadialGradient(u[8],u[9],0,u[8],u[9],u[10]);
       gradient.addColorStop(0,this._cssColor); gradient.addColorStop(1,'transparent');
-      ctx.globalAlpha = .55*this._alpha; ctx.fillStyle = gradient; ctx.fillRect(0,0,w,h); ctx.fillStyle = this._cssColor;
+      ctx.globalAlpha = .55*this._alpha; ctx.fillStyle = gradient; ctx.fillRect(0,0,w,h); ctx.fillStyle = paint;
     }
     if (u[12]) { ctx.globalAlpha = u[12]*.12; ctx.fillRect(0,0,w,h); }
     ctx.lineWidth = t; ctx.shadowColor = this._cssColor; ctx.shadowBlur = 16*this._scale;
@@ -2093,6 +2153,27 @@ class BrightSurfaceController {
       ctx.globalAlpha = u[i+3]; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(u[i],u[i+1],u[i+2],0,Math.PI*2); ctx.stroke();
     }
+    if (u[37]) {
+      ctx.save(); ctx.translate(w/2,h/2); ctx.rotate(Math.atan2(u[39],u[38]));
+      const extent = Math.abs(u[38])*w+Math.abs(u[39])*h, position = (u[36]-.5)*extent*1.4;
+      const beam = ctx.createLinearGradient(position-36,0,position+36,0);
+      beam.addColorStop(0,'transparent'); beam.addColorStop(.5,this._cssColor); beam.addColorStop(1,'transparent');
+      ctx.globalAlpha = .6*u[37]; ctx.fillStyle = beam; ctx.fillRect(position-36,-Math.hypot(w,h),72,Math.hypot(w,h)*2); ctx.restore();
+    }
+    if (u[41]) {
+      const level = (1-u[40])*h;
+      ctx.fillStyle = paint; ctx.globalAlpha = .12*u[41]; ctx.fillRect(0,level,w,h-level);
+      ctx.globalAlpha = .8*u[41]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0,level); ctx.lineTo(w,level); ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.rect(0,level,w,h-level); ctx.clip(); outline(); ctx.restore();
+    }
+    ctx.lineCap = 'round';
+    for (let i=44;i<SURFACE_FLOATS;i+=4) {
+      if (!u[i+3]) continue;
+      ctx.globalAlpha = u[i+3]; ctx.lineWidth = u[i+2]*2;
+      ctx.beginPath(); ctx.moveTo(i>44 && u[i-1] ? u[i-4] : u[i],i>44 && u[i-1] ? u[i-3] : u[i+1]);
+      ctx.lineTo(u[i],u[i+1]); ctx.stroke();
+    }
     ctx.restore();
   }
   destroy() {
@@ -2104,8 +2185,57 @@ class BrightSurfaceController {
     this._resizeObserver?.disconnect(); this._styleObserver?.disconnect(); this._intersection?.disconnect();
     this._release(); connectedRenderers.delete(this); surfaceEnhancements.delete(this.target);
     this.overlay.remove(); this._waves = []; this._pointer = null; this._flash = null;
+    this._traces = []; this._tracePoint = null; this._sweep = null;
     releasePosition(this.target);
   }
+}
+
+/** Coordinate existing controllers. The group never owns their lifetime. */
+export function createSurfaceGroup(controllers) {
+  if (!hasDOM()) throw new Error('Surface groups require a browser document.');
+  const members = [...new Set(controllers)];
+  if (members.length > 32) throw new RangeError('A surface group supports at most 32 controllers.');
+  if (members.some(member => !(member instanceof BrightSurfaceController))) throw new TypeError('A surface group requires surface controllers.');
+  const timers = new Set(), removers = [];
+  let destroyed = false;
+  const cancel = () => { for (const timer of timers) clearTimeout(timer); timers.clear(); };
+  const listen = (target, event, callback, options) => {
+    target.addEventListener(event, callback, options);
+    removers.push(() => target.removeEventListener(event, callback, options));
+  };
+  listen(window,'blur',cancel); listen(window,'pagehide',cancel);
+  listen(window,'scroll',cancel,{passive:true,capture:true});
+  listen(document,'visibilitychange',()=>{if(document.hidden)cancel();});
+  const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  if (motion) listen(motion,'change',cancel);
+  const group = {
+    get pending() { return timers.size; },
+    burst({ kind = 'press', stagger = 60, from = 'center' } = {}) {
+      cancel();
+      if (destroyed || document.hidden) return group;
+      const spacing = motion?.matches ? 0 : Number.isFinite(Number(stagger)) ? Math.max(0,Math.min(120,Number(stagger))) : 60;
+      const center = (members.length-1)/2;
+      const order = members.map((member,index)=>({member,index})).sort((a,b)=>
+        from === 'end' ? b.index-a.index : from === 'start' ? a.index-b.index : Math.abs(a.index-center)-Math.abs(b.index-center));
+      order.forEach(({member},index)=>{
+        const fire = () => {
+          if (!destroyed && member._active()) {
+            if (motion?.matches) member.flash(kind);
+            else member.ripple().sweep().flash(kind);
+          }
+        };
+        if (!index || !spacing) fire();
+        else {
+          const timer = setTimeout(()=>{timers.delete(timer);fire();},spacing*index);
+          timers.add(timer);
+        }
+      });
+      return group;
+    },
+    cancel() { cancel(); return group; },
+    destroy() { if(destroyed)return; destroyed=true; cancel(); for(const remove of removers)remove(); members.length=0; },
+  };
+  return group;
 }
 
 export function defineBrightpixels() {

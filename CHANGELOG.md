@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 — 2026-09-07
+
+- Expand the 1.3 surfaces release with bounded neon drag trails, directional light sweeps and two-color gradients.
+- Add visual charge levels for application-controlled progress, holds and toggles; expose the controls through React refs.
+- Add `createSurfaceGroup` for coordinated bursts with order, staggering, cancellation and reduced-motion behavior.
+- Expand the demo with a four-surface burst, drawing pad, reversible sweep, charge slider, neon switch and three palettes.
+
 ## 1.3.0 — 2026-09-07
 
 - Add `brightenSurface` for real HDR pointer spotlights, touch-origin ripples, connected container feedback and travelling border lights.

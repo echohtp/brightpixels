@@ -123,9 +123,9 @@ test('surface shader writes HDR pixels and releases GPU resources across setting
   const result=await page.evaluate(async()=>{
     const {device,pipeline}=light._gpu;
     device.pushErrorScope('validation');
-    const uniforms=new Float32Array(32);
+    const uniforms=new Float32Array(light._uniforms.length);
     uniforms.set([32,32,3,2,1,.3,.1,8,16,16,24,1]);
-    const buffer=device.createBuffer({size:128,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+    const buffer=device.createBuffer({size:uniforms.byteLength,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
     device.queue.writeBuffer(buffer,0,uniforms);
     const bind=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer}}]});
     const texture=device.createTexture({size:[32,32],format:'rgba16float',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});

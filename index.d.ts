@@ -41,7 +41,7 @@ export interface BrightImageElement extends HTMLElement {
   readonly image: HTMLImageElement | null;
 }
 
-export declare const version: "1.3.0";
+export declare const version: "1.3.1";
 
 export interface BrightShapeElement extends HTMLElement {
   shape: "ring" | "outline" | "bar" | "dot" | "line" | "arc" | "rect" | "pill" | "triangle" | "diamond" | "star" | "polygon" | "path";
@@ -154,6 +154,8 @@ export type BrightSurfaceFlash = 'press' | 'success' | 'error' | 'warning' | 'co
 export interface BrightSurfaceOptions {
   /** CSS color, converted to sRGB for the surface renderer. Defaults to cyan. */
   color?: string;
+  /** Optional second RGB color for light across the surface. */
+  colorEnd?: string;
   /** HDR strength, 1–16. Defaults to 8. */
   intensity?: number;
   /** Border light width in CSS pixels, .5–16. Defaults to 2. */
@@ -164,6 +166,12 @@ export interface BrightSurfaceOptions {
   spotlightSize?: number;
   spotlight?: boolean;
   ripple?: boolean;
+  /** Draw a fading light trail while a primary pointer is pressed. Defaults to false. */
+  trail?: boolean;
+  /** Trail lifetime, 100–1500 ms. Defaults to 600; maximum 12 samples. */
+  trailLifetime?: number;
+  /** Visual charge level, 0–1. Defaults to 0. The application owns progress. */
+  charge?: number;
   /** Automatic pointer / keyboard feedback, including descendant controls. */
   press?: boolean;
   /** Travelling edge light. Reduced motion shows a steady edge. */
@@ -182,6 +190,7 @@ export interface BrightSurfaceController {
   readonly fallbackReason: BrightpixelsFallbackReason | null;
   readonly loading: boolean;
   readonly selected: boolean;
+  readonly charge: number;
   readonly running: boolean;
   /** Merge supplied options. Repeated enhancement of a target returns this controller. */
   update(options?: BrightSurfaceOptions): this;
@@ -189,14 +198,29 @@ export interface BrightSurfaceController {
   flash(kind?: BrightSurfaceFlash): this;
   /** Origin in local border-box CSS pixels; defaults to the center. Bounded to four waves. */
   ripple(origin?: { x?: number; y?: number }): this;
+  /** A single directional light pass. Angle in degrees; duration 150–1500 ms, default 650. */
+  sweep(options?: { angle?: number; duration?: number }): this;
+  setCharge(value?: number): this;
   setLoading(value?: boolean): this;
   select(value?: boolean): this;
   /** Connect another element's click to a visual response. Returns an unlink function. */
   link(trigger: HTMLElement, options?: { kind?: BrightSurfaceFlash }): () => void;
-  /** Clear transient light and loading. Preserve visual selection. */
+  /** Clear transient light and loading. Preserve visual selection and charge. */
   cancel(): this;
   /** Remove resources and listeners. Also runs automatically when the overlay is detached. */
   destroy(): void;
 }
 /** Enhance a single connected HTML container. Throws without a DOM or for unsupported targets. */
 export declare function brightenSurface(target: HTMLElement, options?: BrightSurfaceOptions): BrightSurfaceController;
+
+export interface BrightSurfaceGroup {
+  /** Delayed responses waiting to start. */
+  readonly pending: number;
+  burst(options?: { kind?: BrightSurfaceFlash; stagger?: number; from?: 'start' | 'center' | 'end' }): this;
+  /** Cancel pending responses; active light finishes normally. */
+  cancel(): this;
+  /** Remove group listeners and timers. Member controllers remain owned by the caller. */
+  destroy(): void;
+}
+/** Coordinate up to 32 existing controllers, with 0–120 ms staggering. */
+export declare function createSurfaceGroup(controllers: Iterable<BrightSurfaceController>): BrightSurfaceGroup;

@@ -2,16 +2,17 @@
 
 Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, interaction feedback, and particles. Brightpixels uses extended-range WebGPU rendering, with ordinary-color fallbacks when HDR rendering is unavailable.
 
-**Version 1.3.0** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
+**Version 1.3.1** — [npm package](https://www.npmjs.com/package/brightpixels) · [Release notes](./CHANGELOG.md)
 
 [Main demo](https://echohtp.github.io/brightpixels/) · [HDR particle lab](https://echohtp.github.io/brightpixels/particles.html) · [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
 
-## What's new in 1.3.0
+## What's new in 1.3.1
 
-- `brightenSurface(element)` adds pointer spotlights, press ripples and full-container feedback to existing HTML.
-- Connect a separate button to a container, keep a selection lit, or run travelling edge lights during loading.
-- Optional `<BrightSurface />` for React 18/19, with ordinary server markup and automatic cleanup.
-- Actual extended-range GPU rendering, canvas fallback, shared frame scheduling and reduced-motion alternatives.
+- Interactive HDR surfaces: spotlights, press ripples, full-container feedback and travelling edge lights.
+- Drawable neon trails, directional sweeps and two-color gradients.
+- Charge feedback for progress, holds and toggles, driven by your own application state.
+- `createSurfaceGroup` coordinates bursts across up to 32 surfaces with direction and staggering.
+- Optional React 18/19 component, canvas fallbacks, reduced-motion alternatives and automatic surface cleanup.
 
 [Try interactive surfaces](https://echohtp.github.io/brightpixels/surfaces.html) · [Surface API](#interactive-surfaces)
 
@@ -49,7 +50,7 @@ Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, in
 npm install brightpixels
 ```
 
-For an exact version, use `npm install brightpixels@1.3.0`.
+For an exact version, use `npm install brightpixels@1.3.1`.
 
 Import the package once to register `<bright-text>`, `<bright-image>`, and `<bright-shape>`:
 
@@ -103,11 +104,13 @@ return the existing controller.
 
 | Option | Default | Behavior |
 | --- | --- | --- |
-| `color`, `intensity` | `'#55eeff'`, `8` | CSS color and HDR strength clamped to 1–16. Surface colors convert to sRGB. |
+| `color`, `colorEnd`, `intensity` | `'#55eeff'`, `''`, `8` | Base CSS color, optional second RGB color and HDR strength clamped to 1–16. Surface colors convert to sRGB. |
 | `spotlight`, `spotlightSize` | `true`, `180` | Mouse/pen tracking and touch contact light; radius 24–800 CSS pixels. |
 | `press`, `ripple` | `true`, `true` | Automatic pointer/keyboard feedback; up to four expanding waves. |
 | `thickness`, `radius` | `2`, `null` | Edge width .5–16 pixels; uniform radius defaults to the computed top-left pixel radius. |
 | `loading`, `selected` | `false`, `false` | Travelling edge or persistent visual selection. |
+| `trail`, `trailLifetime` | `false`, `600` | Fading drag light, with up to 12 samples and a 100–1500 ms lifetime. |
+| `charge` | `0` | Steady visual fill from 0–1, controlled by the application. |
 | `enabled` | `true` | Disables all surface light when false. |
 
 `update(options)` merges supplied values. `refresh()` rereads geometry and styles;
@@ -118,12 +121,12 @@ container's clipping rules and does not change its overflow or layout.
 Controller methods:
 
 - `flash(kind)` provides `press`, `success`, `error`, `warning`, `complete` or `notify` feedback.
-- `ripple({ x, y })` starts at local border-box CSS pixels; omitted coordinates use the center.
-- `setLoading(boolean)` and `select(boolean)` control light only. Set your own ARIA and application state.
+- `ripple({ x, y })` starts at local border-box CSS pixels; omitted coordinates use the center. `sweep({ angle, duration })` sends one beam across the surface (default 25°, 650 ms; duration 150–1500 ms).
+- `setLoading(boolean)`, `select(boolean)` and `setCharge(0–1)` control light only. Set your own ARIA and application state.
 - `link(button, { kind })` links clicks, including native keyboard clicks, to a surface response and returns an unlink function.
-- `cancel()` clears transient light and loading, preserving selection. `destroy()` removes the overlay, listeners and GPU resources.
+- `cancel()` clears transient light and loading, preserving selection and charge. `destroy()` removes the overlay, listeners and GPU resources.
 
-`target`, `overlay`, `mode`, `fallbackReason`, `loading`, `selected`, `running` and
+`target`, `overlay`, `mode`, `fallbackReason`, `loading`, `selected`, `charge`, `running` and
 `ready` are readable. `ready` settles after renderer initialization; `mode` can
 change later. `hdr` means an extended-range renderer, not measured display brightness.
 
@@ -131,10 +134,50 @@ Pointer events stay native: no gesture capture, prevented scrolling, layout
 animation or focus suppression. Scroll and pointer cancellation clear touch light.
 Offscreen/hidden surfaces stop drawing; detaching the overlay destroys its
 controller. Reduced motion replaces travelling light with a steady edge, disables
-tracking/ripple movement and uses brief static press feedback. Global HDR disable
+tracking, trails and ripple movement; sweeps become brief static feedback. Charge stays steady. Global HDR disable
 keeps the ordinary-color canvas effect; use the local `enabled` option to remove
 all effects. GPU resources are shared with the core; idle surfaces schedule no
 frames. Surfaces use no external animation library.
+
+### Draw, charge and coordinate light
+
+```js
+const pad = brightenSurface(drawingPad, {
+  color: '#55eeff', colorEnd: '#ff55c8',
+  trail: true, trailLifetime: 1000,
+  spotlight: false, press: false,
+});
+pad.sweep({ angle: 180, duration: 800 });
+pad.setCharge(0.65); // Your upload/hold/slider provides progress.
+```
+
+Trails draw only while the primary pointer is pressed. They stay inside the target,
+retain at most 12 samples and disappear after `trailLifetime`. The helper never
+captures gestures or disables scrolling. A dedicated drawing pad can opt into
+`touch-action: none` in your CSS; ordinary cards should keep their normal touch
+behavior. Provide a native control for any action that also has a drawing gesture.
+
+```js
+import { brightenSurface, createSurfaceGroup } from 'brightpixels';
+
+const surfaces = [...document.querySelectorAll('.panel')]
+  .map(panel => brightenSurface(panel, { colorEnd: '#ff55c8' }));
+const group = createSurfaceGroup(surfaces);
+group.burst({ from: 'center', stagger: 80 });
+// Or use 'start' / 'end', with kind: 'success' for a shared outcome color.
+
+// Cleanup:
+group.destroy();
+surfaces.forEach(surface => surface.destroy());
+```
+
+Groups borrow up to 32 distinct controllers. A burst combines a ripple, sweep and
+flash; `stagger` is clamped to 0–120 ms. `from` defaults to `center`; the other
+choices follow the supplied array order. `pending` counts delayed responses.
+`cancel()` drops delayed responses while active light finishes normally. Groups
+cancel queued work on scroll, blur, page hide and motion preference changes.
+Reduced motion triggers static feedback together. Destroying a group removes its
+listeners and timers; it does **not** destroy its member surfaces.
 
 ### React surface
 
@@ -158,7 +201,7 @@ React 18/19. `as` defaults to `div`; supported alternatives are `section`, `arti
 `aside`, `main`, `nav`, `header` and `footer`. Standard HTML attributes, children and
 event handlers pass to that element. SSR renders ordinary markup. Changed `options`
 replace previous props (omitted fields use defaults), updating the same controller.
-The ref exposes `flash`, `ripple`, `setLoading`, `select`, `cancel`, `target` and
+The ref exposes `flash`, `ripple`, `sweep`, `setCharge`, `setLoading`, `select`, `cancel`, `target` and
 `controller`; these become usable after mounting. Unmount and StrictMode cleanup
 release resources. The existing `brightpixels/react` entry still imports no React runtime.
 
@@ -601,7 +644,7 @@ and fires when the reason changes, even if the mode stays `fallback`.
 
 The documented custom elements, configuration functions, capability snapshot,
 edge, feedback and surface helpers, particle/confetti engines, and TypeScript/React entry points
-form the 1.x public API. Version 1.3.0 preserves the existing 1.0–1.2 APIs. Breaking public API changes
+form the 1.x public API. Version 1.3.1 preserves the existing 1.0–1.2 APIs. Breaking public API changes
 require a major version. Underscore-prefixed members are internal; browser capability
 signals and physical HDR output remain device-dependent.
 

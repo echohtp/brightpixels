@@ -1,6 +1,6 @@
 {
   "name": "brightpixels",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "HDR text, images, shapes, interactive surfaces and particles, with optional React components.",
   "type": "module",
   "main": "./index.js",

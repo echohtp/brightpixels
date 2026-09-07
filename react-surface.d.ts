@@ -6,6 +6,8 @@ export interface BrightSurfaceHandle {
   readonly controller: BrightSurfaceController | null;
   flash(kind?: BrightSurfaceFlash): void;
   ripple(origin?: { x?: number; y?: number }): void;
+  sweep(options?: { angle?: number; duration?: number }): void;
+  setCharge(value?: number): void;
   setLoading(value?: boolean): void;
   select(value?: boolean): void;
   cancel(): void;
