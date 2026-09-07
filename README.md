@@ -1,19 +1,21 @@
 # Brightpixels
 
-Dependency-free JavaScript web components for HDR text, image highlights, and native shapes. Brightpixels uses an extended-range WebGPU canvas and preserves fallback content when rendering is unavailable.
+Dependency-free JavaScript for HDR text, image highlights, shapes, edge glow, interaction feedback, and particles. Brightpixels uses extended-range WebGPU rendering, with ordinary-color fallbacks when HDR rendering is unavailable.
 
-[Demo](https://echohtp.github.io/brightpixels/) · [Image comparisons](https://echohtp.github.io/brightpixels/#images) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
+**Current release: 1.1.0** — [Published on npm](https://www.npmjs.com/package/brightpixels/v/1.1.0) · [GitHub release](https://github.com/echohtp/brightpixels/releases/tag/v1.1.0)
 
-## What's new in 1.1
+[Main demo](https://echohtp.github.io/brightpixels/) · [HDR particle lab](https://echohtp.github.io/brightpixels/particles.html) · [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) · [Hardware test](https://echohtp.github.io/brightpixels/hardware.html)
+
+## What's new in 1.1.0
 
 - Optional `brightpixels/particles` module for HDR confetti, sparks and mouse trails.
 - One reusable viewport canvas per engine, with GPU-computed motion and instanced drawing.
 - Canvas fallback, reduced-motion sparkles, explicit cleanup and global brightness controls.
 - TypeGPU generates shader structures and buffer offsets at build time. No runtime dependencies.
 
-[Try the particle lab](https://echohtp.github.io/brightpixels/particles.html).
+[Try the particle lab](https://echohtp.github.io/brightpixels/particles.html) or [jump to the particle API](#hdr-particles).
 
-## What's included from 1.0
+## Core features
 
 - Stable public API for HDR text, images, shapes, progress and status indicators.
 - Existing-element edge glow and touch, mouse and keyboard interaction feedback.
@@ -31,11 +33,19 @@ npm install brightpixels
 
 For an exact version, use `npm install brightpixels@1.1.0`.
 
-Import the package once to register `<bright-text>` and `<bright-image>`:
+Import the package once to register `<bright-text>`, `<bright-image>`, and `<bright-shape>`:
 
 ```js
 import "brightpixels";
 ```
+
+Import the optional particle engine when you need confetti, sparks, or mouse trails:
+
+```js
+import { createParticleEffects } from "brightpixels/particles";
+```
+
+The main import does not load particle code. Both entry points include TypeScript declarations and have zero runtime dependencies.
 
 For a page without a bundler, copy `index.js` from this repository and load it as a module:
 
@@ -52,7 +62,7 @@ Wrap a short text fragment:
 <p>An example of <bright-text intensity="8">inline emphasis</bright-text>.</p>
 ```
 
-New in 0.2.0: add a CSS `color` to brighten colored text, including Display P3:
+Add a CSS `color` to brighten colored text, including Display P3:
 
 ```html
 <bright-text color="color(display-p3 1 0.35 0)" intensity="4">Orange, brighter.</bright-text>
@@ -477,10 +487,11 @@ when no fallback reason is set). The `brightpixelsready` event includes `reason`
 and fires when the reason changes, even if the mode stays `fallback`.
 
 
-### Version 1.0 compatibility
+### Version 1.x compatibility
 
-The documented custom elements, configuration functions, capability snapshot and
-TypeScript/React entry points form the 1.x public API. Breaking public API changes
+The documented custom elements, configuration functions, capability snapshot,
+edge and feedback helpers, particle engine, and TypeScript/React entry points
+form the 1.x public API. Version 1.1.0 preserves the existing 1.0 APIs. Breaking public API changes
 require a major version. Underscore-prefixed members are internal; browser capability
 signals and physical HDR output remain device-dependent.
 
@@ -489,7 +500,7 @@ for tested behavior and compatibility details.
 
 ### Existing-element edges
 
-[Try the edge demo](https://echohtp.github.io/brightpixels/edges.html). Included in the npm 1.0.0 release.
+[Try the edge demo](https://echohtp.github.io/brightpixels/edges.html). Available since 1.0.0.
 
 ```js
 import { brightenEdges } from 'brightpixels';
@@ -553,7 +564,7 @@ to light; upload/save/error/notification actions are labeled simulations. Press
 light works with touch, mouse, and keyboard. Reduced motion skips animated blooms
 while preserving static press and selection feedback. Pulses stop offscreen or
 when the page is hidden. Removing the target destroys the controller and its edge;
-reattach feedback after reinserting the target. Included in the npm 1.0.0 release.
+reattach feedback after reinserting the target. Available since 1.0.0.
 
 ### Touch recipes
 
@@ -577,12 +588,10 @@ required. Demo source lives in `assets/mobile.js` and `mobile.html`.
 [Dreamnet](https://echohtp.github.io/brightpixels/dreamnet.html) includes mouse-following
 card glow, background Tron trails and a glowing confetti cannon.
 [Download its source kit](https://echohtp.github.io/brightpixels/assets/brightpixels-dreamnet.zip).
-The themes and demo-specific effects are separate recipes, not npm package exports.
+The downloadable themes are standalone demo recipes. Dreamnet's confetti cannon
+uses the published `brightpixels/particles` engine introduced in 1.1.0.
 
-The npm 1.0.0 release includes edge and feedback helpers added after the earlier
-GitHub v1.0.0 snapshot. Use npm for the complete stable package.
-
-## HDR particles (1.1)
+## HDR particles
 
 ```js
 import { createParticleEffects } from 'brightpixels/particles';
