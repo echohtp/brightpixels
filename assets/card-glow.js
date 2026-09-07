@@ -19,6 +19,30 @@ export function glowCards(selector) {
     neon.intensity = 16; neon.thickness = 3.5; neon.hidden = true;
     neon.setAttribute('aria-hidden', 'true'); card.append(neon);
     let timer = 0, retire = 0, pressed = false;
+    let pointerFrame = 0, pointerX = 0, pointerY = 0;
+    const stopTracking = () => {
+      cancelAnimationFrame(pointerFrame); pointerFrame = 0;
+      delete card.dataset.tracking;
+    };
+    const track = (event) => {
+      if (!enabled || event.pointerType !== 'mouse' || document.hidden) return;
+      pointerX = event.clientX; pointerY = event.clientY;
+      if (pointerFrame) return;
+      pointerFrame = requestAnimationFrame(() => {
+        pointerFrame = 0;
+        if (!enabled || !card.isConnected) return;
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--card-glow-x', `${pointerX - rect.left}px`);
+        card.style.setProperty('--card-glow-y', `${pointerY - rect.top}px`);
+        card.dataset.tracking = '';
+      });
+    };
+    card.addEventListener('pointerenter', track);
+    card.addEventListener('pointermove', track);
+    card.addEventListener('pointerleave', stopTracking);
+    card.addEventListener('pointercancel', stopTracking);
+    // Position updates run only on pointer events, never in a permanent animation loop.
+    window.addEventListener('scroll', stopTracking, { passive: true, capture: true });
     const show = () => {
       clearTimeout(timer); clearTimeout(retire);
       neon.radius = (parseFloat(getComputedStyle(card).borderTopLeftRadius) || 0) + 4;
@@ -51,7 +75,7 @@ export function glowCards(selector) {
       if (enabled && !pressed && card.isConnected) { show(); light.flash('complete'); settle(); }
     });
     for (const status of card.querySelectorAll('[role="status"]')) observer.observe(status, { childList: true, characterData: true, subtree: true });
-    const cancel = () => { pressed = false; clearTimeout(timer); clearTimeout(retire); neon.hidden = true; delete card.dataset.glowing; light.cancel(); };
+    const cancel = () => { stopTracking(); pressed = false; clearTimeout(timer); clearTimeout(retire); neon.hidden = true; delete card.dataset.glowing; light.cancel(); };
     controls.push((value) => {
       enabled = Boolean(value); cancel();
       if (enabled) [light] = brightenFeedback(card, { color, thickness: 2.5 });

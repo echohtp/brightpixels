@@ -15,6 +15,10 @@ class="dn-text-glow" to other text to opt in. The halo follows the text color;
 override --dn-text-glow-color to tint its outer glow. This is a CSS text-shadow
 effect and works without HDR. Keyboard focus outlines remain visible.
 
+Move the mouse across a window to steer its neon spotlight. Clicking still
+lights the full perimeter. Tracking stops on exit, scrolling or window blur;
+touch keeps the existing press glow without a sticky hover effect.
+
 Included: page, CSS, interaction code, shared container glow, Brightpixels runtime,
 and the locally bundled Anton font. Runtime license: LICENSE.txt. Font license:
 assets/fonts/Anton-OFL.txt. Nothing is loaded from a third-party server at runtime.
