@@ -11,7 +11,8 @@ test('offscreen motion settles and resumes when visible', async ({ page }) => {
   });
   await expect(page.locator('#shape')).toHaveAttribute('data-paused');
   await page.evaluate(() => { const el = document.querySelector('#shape'); el.value = 90; el.pulse(); });
-  expect(await page.locator('#shape').evaluate((el) => [el._transition, el._pulsing, el._frame])).toEqual([null, false, 0]);
+  // Attribute changes can queue one static redraw; wait for that frame to settle.
+  await expect.poll(() => page.locator('#shape').evaluate((el) => [el._transition, el._pulsing, el._frame])).toEqual([null, false, 0]);
   await page.locator('#shape').scrollIntoViewIfNeeded();
   await expect(page.locator('#shape')).not.toHaveAttribute('data-paused');
   await expect.poll(() => page.locator('#shape').evaluate((el) => el._displayValue)).toBe(90);

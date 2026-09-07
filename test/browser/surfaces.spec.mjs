@@ -85,6 +85,7 @@ test('linked outcomes, loading and selection remain independent of application s
 test('reduced motion, hidden pages, offscreen surfaces and disabled effects stop work',async({page})=>{
   await open(page);
   await page.emulateMedia({reducedMotion:'reduce'});
+  await expect.poll(()=>page.evaluate(()=>light._motion.matches)).toBe(true);
   await page.evaluate(()=>light.setLoading().ripple().flash());
   expect(await page.evaluate(()=>light._waves.length)).toBe(0);
   await expect.poll(()=>page.evaluate(()=>light.running)).toBe(false);
